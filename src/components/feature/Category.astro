@@ -1,0 +1,262 @@
+---
+/**
+ * 章节目录：
+ * 1. 支持显示当前文章的标题；
+ * 2. 支持显示当前所在小节的标题高亮；
+ * 3. 支持显示当前所在小节路径标题高亮；
+ * 4. 支持点击跳转章节。
+ */
+
+import type { MarkdownHeading } from 'astro';
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'aside'> {
+  headings: MarkdownHeading[];
+  maxHeadingLevel?: number;
+  minHeadingLevel?: number;
+}
+
+const {
+  headings = [],
+  maxHeadingLevel = 3,
+  minHeadingLevel = 2,
+  class: classname,
+  ...props
+} = Astro.props;
+
+let prevDepth = Number.MAX_SAFE_INTEGER;
+let rootDepth = Number.MAX_SAFE_INTEGER;
+let justifyDepth = 0;
+let path: string[] = [];
+const categoryItems = [];
+const categoryDict: Record<string, string[]> = {};
+
+for (const heading of headings) {
+  const { depth } = heading;
+  if (depth < minHeadingLevel || depth > maxHeadingLevel) {
+    continue;
+  }
+
+  if (depth === minHeadingLevel) {
+    justifyDepth = 0;
+    rootDepth = minHeadingLevel;
+    path = [heading.slug];
+  } else if (depth > prevDepth) {
+    justifyDepth += 1;
+    path = [...path, heading.slug];
+  } else if (depth === prevDepth) {
+    justifyDepth = justifyDepth;
+    path = [...path.slice(0, path.length - 1), heading.slug];
+  } else {
+    if (depth > rootDepth) {
+      justifyDepth = 1;
+      path = [...path.slice(0, 1), heading.slug];
+    } else {
+      rootDepth = depth;
+      justifyDepth = 0;
+      path = [heading.slug];
+    }
+  }
+
+  prevDepth = depth;
+
+  categoryItems.push({ justifyDepth, heading, path });
+  categoryDict[heading.slug] = path;
+}
+---
+
+<aside
+  id='category'
+  class:list={['py-2 px-4 text-sm leading-1.5', classname]}
+  data-message={JSON.stringify(categoryDict)}
+  {...props}
+>
+  <ul class='max-h-screen overflow-auto'>
+    <div class='mb-2 font-bold text-base'>本章内容</div>
+    {
+      categoryItems.map((item) => {
+        const {
+          heading: { slug, text },
+          justifyDepth,
+        } = item;
+
+        return (
+          <li
+            style={`padding-left: ${justifyDepth * 1}rem`}
+            class='py-1 overflow-hidden link-omit'
+            data-anchor-id={slug}
+          >
+            <a class='hover:text-accient' href={`#${slug}`}>
+              {text}
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</aside>
+
+<style>
+  ul {
+    list-style: none;
+    margin: 0;
+    line-height: 1.5;
+    font-weight: 400;
+    scrollbar-width: thin;
+  }
+
+  li.active {
+    @apply text-accient;
+  }
+</style>
+
+<script>
+import { throttle } from 'lodash';
+
+  // 目录索引定义
+  interface CategoryItem {
+    id: string;
+    target: HTMLElement;
+    index: number;
+    path: string[];
+    anchor: null | HTMLElement;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // 存储屏幕中的标题元素，可能弃用
+    const categoryEl = document.querySelector('#category')!;
+
+    // 当前激活的标题
+    let activeElement: CategoryItem | null | undefined = null;
+
+    // 筛选大致范围，随后进一步筛选所有可用标题
+    const els = document.querySelectorAll('h1,h2,h3,h4,h5,h6,h7,h8,h9');
+
+    // 由于 Astro 不能直接传输标题的 meta 信息，通过自定义属性重新读取
+    // 'string'
+    const categoryDict = JSON.parse(
+      categoryEl.getAttribute('data-message') ?? '{}'
+    ) as Record<string, string[]>;
+
+    // 过滤掉不允许显示的标题，使用 map 存储页面中的对应标题元素及其元信息
+    const validCategoryItems = Array.from(els).map(
+      (el, index) =>
+        categoryDict[el.id] && {
+          id: el.id,
+          target: el as HTMLElement,
+          index,
+          path: categoryDict[el.id],
+          anchor: null,
+        }
+    )
+    .filter(Boolean);
+    const map = new Map<string, CategoryItem>(validCategoryItems.map(item => [item.id, item]));
+
+    if (map.size == 0) {
+      return;
+    }
+
+    // ---------- 存在标题可用，初始化处理函数 ----------------
+
+    class Category {
+      static #ids: null | string[] = null;
+
+      static keys() {
+        return map.keys();
+      }
+
+      static values() {
+        return map.values();
+      }
+
+      static get ids() {
+        if (Category.#ids) {
+          return Category.#ids;
+        }
+        Category.#ids = Array.from(map.keys());
+        return Category.#ids;
+      }
+
+      static getItem(id: string) {
+        return map.get(id);
+      }
+
+      static getAnchor(id: string) {
+        const row = Category.getItem(id);
+        let nextElement = row?.anchor;
+        if (!nextElement) {
+          nextElement = categoryEl.querySelector(
+            `li[data-anchor-id=${id}]`
+          ) as HTMLElement;
+
+          row && (row.anchor = nextElement);
+        }
+
+        return nextElement;
+      }
+
+      // 停用已激活的标题，激活下一个高亮的标题
+      static changeActiveElement(nextElement: CategoryItem | null) {
+        requestAnimationFrame(function () {
+          if (activeElement && activeElement.path) {
+            const { path } = activeElement;
+            for (const id of path) {
+              Category.getAnchor(id)?.classList.remove('active');
+            }
+          }
+
+          activeElement = nextElement;
+
+          if (activeElement && activeElement.path) {
+            const { path } = activeElement;
+            // console.info(activeElement, path);
+            for (const id of path) {
+              Category.getAnchor(id)?.classList.add('active');
+            }
+          }
+        });
+      }
+    }
+
+    let prev = 0;
+    function update() {
+      if (window.scrollY === prev) {
+        return;
+      }
+      prev = window.scrollY;
+      const { innerHeight: height } = window;
+      const threshold = 0.3;
+      const viewportTick = threshold * height;
+      const scrollIndicators = Array.from(Category.values())
+        .map((item) => ({
+          ...item,
+          top: item.target.getBoundingClientRect().top + item.target.getBoundingClientRect().height - viewportTick,
+        }))
+        .filter(item => item.top <= 0)
+        .sort((a, b) => b.top - a.top);
+        Category.changeActiveElement(scrollIndicators[0]);
+    }
+    const updateThrottled = throttle(update, 50);
+
+
+    function updateByHash() {
+      const { hash } = location;
+      const id = decodeURIComponent(hash.slice(1));
+      updateThrottled.cancel();
+      if (!id) {
+        update();
+        return;
+      }
+      Category.changeActiveElement(Category.getItem(id) ?? null);
+    }
+
+  
+    window.addEventListener('scroll', (e) => {
+        updateThrottled();
+    });
+
+    window.addEventListener('load', updateByHash);
+
+    window.addEventListener('popstate', updateByHash);
+  });
+</script>
