@@ -1,0 +1,130 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import Tags from '../components/Tags.astro';
+import { SITE_TITLE } from '@/consts';
+import IconEdit from '@/components/icon/IconEdit.astro';
+
+type Props = CollectionEntry<'blog'>['data'] & { editPage?: string };
+
+const { title, description, pubDate, updatedDate, heroImage, tags, editPage } =
+  Astro.props;
+const hasCategory = !!(
+  await (Astro.slots.has('category') ? Astro.slots.render('category') : '')
+).trim();
+const hasEditPage = typeof editPage === 'string';
+---
+
+<html lang='zh-cn'>
+  <head>
+    <BaseHead title={`${title} | ${SITE_TITLE}`} description={description} />
+  </head>
+  <body>
+    <Header class='fixed w-full z-10 header' />
+    <div class='flex mx-auto sm:px-12 max-w-screen-xl content'>
+      <main class='flex-auto flex w-full py-6 px-6 min-w-0'>
+        <article
+          class:list={['only:justify-center overflow-hidden', 'mx-auto']}
+          data-pagefind-body
+          data-pagefind-meta={`pubDate: ${pubDate}, updatedDate: ${updatedDate}, type: blog}`}
+        >
+          <div class='w-full rounded-xl overflow-hidden'>
+            {
+              heroImage && (
+                <img class='min-w-[800px]' src={heroImage} alt='' />
+              )
+            }
+          </div>
+          <div class='prose sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4'>
+            <div class='mb-4 py-4 text-center leading-0'>
+              <div class='text-gray-600 mb-2'>
+                <FormattedDate date={pubDate} />
+              </div>
+              <h1 class='mb-2'>{title}</h1>
+              <hr />
+            </div>
+            <slot />
+            <footer class='pt-8'>
+              {
+                tags && (
+                  <div class='flex mb-4'>
+                    <div class='flex-none'>标签：</div>
+                    <Tags items={tags} />
+                  </div>
+                )
+              }
+              <div
+                class:list={[
+                  'flex flex-wrap gap-x-12 gap-y-4',
+                  hasEditPage && 'justify-between',
+                  !hasEditPage && 'justify-end',
+                ]}
+              >
+                {
+                  hasEditPage && (
+                    <a
+                      class='flex-none'
+                      href={editPage}
+                      target='_blank'
+                      onclick={
+                        editPage?.startsWith('/__open-in-editor')
+                          ? `fetch(this.href); console.log(this, event); return false;`
+                          : undefined
+                      }
+                    >
+                      <IconEdit class='inline-block size-4 align-text-bottom mb-[2px]' />
+                      <span> 编辑此页 </span>
+                    </a>
+                  )
+                }
+                {
+                  !updatedDate && pubDate && (
+                    <div class='italic flex-none text-nowrap text-right'>
+                      最近更新于 <FormattedDate date={pubDate} />
+                    </div>
+                  )
+                }
+                {
+                  updatedDate && (
+                    <div class='italic'>
+                      最近更新于 <FormattedDate date={updatedDate} />
+                    </div>
+                  )
+                }
+              </div>
+            </footer>
+          </div>
+        </article>
+      </main>
+      {
+        hasCategory && (
+          <div class='flex-auto sticky sidebar-right self-start hidden mt-4 top-[calc(var(--header-height)+1rem)] px-2 border-l md:block'>
+            <slot name='category' />
+          </div>
+        )
+      }
+    </div>
+    <Footer />
+    <style>
+      .header {
+        height: var(--header-height, 3.5rem);
+      }
+
+      .content {
+        padding-top: var(--header-height, 3.5rem);
+      }
+
+      .sidebar-left {
+        width: var(--sidebar-left-width, 20rem);
+        top: var(--header-height, 3.5rem);
+      }
+
+      .sidebar-right {
+        width: var(--sidebar-right-width, 20rem);
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+---
+interface Props {
+  items: string[];
+}
+
+const { items } = Astro.props;
+---
+
+<ul class='flex flex-wrap gap-x-2 gap-y-2 text-left'>
+  {
+    items.map((item) => ( 
+      <li class='inline-block m-0 px-2 py-1 text-sm rounded-md overflow-hidden bg-gray-200'>
+        {item}
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+</style>

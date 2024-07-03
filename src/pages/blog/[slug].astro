@@ -1,0 +1,45 @@
+---
+/**
+ * 博客详情页面
+ */
+
+import BlogPost from '@/layouts/BlogPost.astro';
+import Category from '@/components/Category.astro';
+import { blogsSortedByUpdateAndPubDate } from '../../utils/collection-blog';
+import { fetchPackageJSON } from '@/utils/tools';
+import { CONTENT_BLOG_DIR } from '@/consts';
+import { resolve } from 'path';
+
+export const getStaticPaths = async function () {
+  const posts = blogsSortedByUpdateAndPubDate;
+
+  return [
+    ...posts.map((post) => ({
+      params: { slug: post.slug },
+      props: { post },
+    })),
+  ];
+};
+
+
+const { post: { data, id, render } } = Astro.props;
+const { Content, headings } = await render();
+const { repository } = await fetchPackageJSON();
+const isProd = import.meta.env.PROD;
+const contentDevURI = (resolve(CONTENT_BLOG_DIR, id)).replaceAll('\\', '\\\\');
+const editPage = isProd
+  ? `${repository as string}/src/contents/blog/${id}`
+  : `/__open-in-editor?file=${contentDevURI}`;
+---
+<!-- todo: tranform to local -->
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css"
+    integrity="sha384-MlJdn/WNKDGXveldHDdyRP1R4CTHr3FeuDNfhsLPYrq2t0UBkUdK2jyTnXPEK1NQ"
+    crossorigin="anonymous"
+/>
+
+<BlogPost {...data} title={`${data.title}`} editPage={editPage}>
+  <Content />
+  {headings.length > 0 && <Category headings={headings} slot='category' />}
+</BlogPost>

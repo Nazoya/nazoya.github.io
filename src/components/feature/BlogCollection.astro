@@ -1,0 +1,58 @@
+---
+import BaseHead from '@/components/BaseHead.astro';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import BlogCard from '@/components/BlogCard.astro';
+import BlogSideMenu from '@/components/feature/BlogSideMenu.astro';
+import type { IContentCollection } from '@/types/local';
+
+interface Props {
+  title: string;
+  description: string;
+  lang?: string;
+  items: IContentCollection<'blog'>[];
+}
+
+const { title, description, items, lang = 'zh-cn' } = Astro.props; 
+
+---
+
+<html lang={lang}>
+  <head>
+    <BaseHead title={title} description={description} />
+    <slot name='head' />
+  </head>
+
+  <body class='bg-white text-black dark:bg-black dark:text-white'>
+    <Header class='sticky top-0 w-full z-10 h-[var(--header-height)]' />
+    <div class='flex mx-auto max-w-[1320px] content px-4 md:px-8'>
+      <BlogSideMenu
+        class='flex-none sticky top-[var(--header-height)] hidden pt-4 w-1/4 h-[calc(100vh-var(--header-height))] border-r md:inline-flex md:w-1/4 lg:w-[300px]'
+      />
+      <div class='flex-auto basis-auto min-w-0 w-7/12 max-w-[800px] md:px-8'>
+        <main class='mt-4 mx-auto w-full md:w-full'>
+          <slot name='top' />
+          <section>
+            <ul>
+              {
+                items.map((blog) => (
+                  <BlogCard
+                    class='mb-8'
+                    url={blog.link}
+                    title={blog.data.title}
+                    image={blog.data.heroImage}
+                    pubDate={blog.data.pubDate}
+                    description={blog.data.description}
+                    tags={blog.data.tags}
+                  />
+                ))
+              }
+            </ul>
+          </section>
+        </main>
+        <slot name='pagination' />
+      </div>
+    </div>
+    <Footer />
+  </body>
+</html>

@@ -1,0 +1,21 @@
+---
+const today = new Date();
+const year = today.getFullYear();
+const period = year !== 2024 ? `2024-${year}` : year;
+---
+
+<footer class='text-sm'>
+	&copy; {period} / 谜言 / All rights reserved.
+	<div class="social-links">
+	</div>
+</footer>
+<style>
+
+	footer {
+		padding: 2em 1em 6em 1em;
+		background: linear-gradient(var(--gray-gradient)) no-repeat;
+		color: rgb(var(--gray));
+		text-align: center;
+	}
+
+</style>

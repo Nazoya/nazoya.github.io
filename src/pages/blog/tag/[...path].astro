@@ -1,0 +1,72 @@
+---
+import Pagination from '@/components/Pagination.astro';
+import BlogCollection from '@/components/feature/BlogCollection.astro';
+import BlogTagTips from '@/components/feature/BlogTagTips.astro';
+import { BLOG_PAGE_SIZE, SITE_DESCRIPTION, SITE_TITLE } from '@/consts';
+import type { IContentCollection } from '@/types/local';
+import { tags, tagsStatistics } from '@/utils/collection-blog';
+import { paginate } from '@/utils/paginate';
+import { canonicalURL } from '@/utils/tools';
+import type { InferGetStaticPropsType } from 'astro';
+
+export async function getStaticPaths() {
+  return tags
+    .map((tag) => {
+      if (!tagsStatistics.has(tag)) {
+        return null;
+      }
+      const blogsChunks = paginate(
+        tagsStatistics.get(tag) as IContentCollection<'blog'>[],
+        { paramName: 'page', pageSize: BLOG_PAGE_SIZE, path: `/tag/${tag}` }
+      );
+
+      return blogsChunks.map((chunk) => ({
+        params: {
+          path: `${tag}/page/${chunk.props.currentPage}`,
+        },
+        props: {
+          ...chunk.props,
+          tag,
+        },
+      }));
+    })
+    .flat();
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { path } = Astro.params;
+
+const { tag, data: blogs, currentPage, lastPage } = Astro.props;
+---
+
+<BlogCollection
+  title={`标签：${tag} | 第${currentPage}页 | 博客 | ${SITE_TITLE}`}
+  description={SITE_DESCRIPTION}
+  items={blogs}
+>
+  {
+    (
+      <Fragment slot='head'>
+        {currentPage == 1 && (
+          <link
+            rel='canonical'
+            href={canonicalURL(`/blog/tag/${path}`, Astro.site)}
+          />
+        )}
+      </Fragment>
+    )
+  }
+  <BlogTagTips tag={tag} slot='top' />
+  {
+    lastPage !== 1 && (
+      <Pagination
+        class='border-t py-3 sm:px-0'
+        slot='pagination'
+        current={currentPage}
+        totalPage={lastPage}
+        generateURL={(page) => `/blog/page/${page}`}
+      />
+    )
+  }
+</BlogCollection>

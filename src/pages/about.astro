@@ -1,0 +1,106 @@
+---
+import { SITE_TITLE } from '@/consts';
+import Layout from '../layouts/BlogPost.astro';
+---
+
+<Layout
+  title={`关于`}
+  description='亲爱的访客，你好！我是谜言，一名略懂后端的前端开发，目前求职中。本站使用 Astro + tailwindcss 构建，所有页面使用 SSG 生成'
+  pubDate={new Date('2024-06-30')}
+>
+  <h2>欢迎！</h2>
+  <p>
+    亲爱的访客，你好！我是<a href='https://github.com/Nazoya'>谜言</a
+    >，一名略懂后端的前端开发，目前求职中。
+  </p>
+  <table class='pl-0 text-left'>
+    <caption> 技术栈展示表 </caption>
+    <colgroup>
+      <col span='1' style='width: 40%; padding: 0 5rem;' />
+      <col span='1' />
+    </colgroup>
+    <thead>
+      <tr>
+        <th scope='col' class='px-8 pt-[0.5em]'>技&nbsp;&nbsp;能</th>
+        <th scope='col' class='px-8 pt-[0.5em]'>熟练度</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        [
+          { name: 'React', value: 80, max: 100, desc: '熟练' },
+          { name: 'Vue', value: 65, max: 100, desc: '熟悉' },
+          { name: 'JavaScript', value: 80, max: 100, desc: '熟练' },
+          { name: 'HTML', value: 80, max: 100, desc: '熟练' },
+          { name: 'CSS', value: 80, max: 100, desc: '熟练' },
+          { name: 'Node.js', value: 60, max: 100, desc: '了解' },
+          { name: 'Python', value: 50, max: 100, desc: '了解' },
+          { name: 'C#', value: 50, max: 100, desc: '了解' },
+          { name: 'Astro', value: 60, max: 100, desc: '熟悉' },
+          { name: 'Docker', value: 60, max: 100, desc: '熟悉' },
+          { name: 'Drone', value: 60, max: 100, desc: '熟悉' },
+          { name: 'Gitlab CI', value: 60, max: 100, desc: '熟悉' },
+        ].map(({ name, value, max, desc }) => (
+          <tr class='pl-0'>
+            <th scope='row' class='px-8'>
+              <label for={name} class='mr-4'>
+                {name}
+              </label>
+            </th>
+            <td class='px-8'>
+              <progress id={name} class='w-full' value={value} max={max}>
+                {desc}
+              </progress>
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  <h2>关于本站</h2>
+  <p>
+    {SITE_TITLE}使用 <a href='https://astro.build/'><code>Astro</code></a> + <a
+      href='https://tailwindcss.com/'><code>tailwindcss</code></a
+    > 构建，所有页面使用 SSG 生成。
+  </p>
+  <h3>站点特征</h3>
+  <p>
+    以下是我个人搭建此站时的对于此网站的期望：
+  </p>
+	<ul>
+		<li>不使用 JavaScript 也可以使用绝大部分内容</li>
+		<li>所有设备都易于使用</li>
+		<li>尽量小的传输文件</li>
+		<li>提供博客、文档和个人作品展示能力</li>
+		<li>不需要后端服务即可使用</li>
+	</ul>
+  <h3>构建观点</h3>
+  <p>
+    因此，本站围绕以下观点进行构建：
+  </p>
+	<ul>
+		<li>渐进增强</li>
+		<li>非侵入式 JavaScript</li>
+		<li>HTML 语义化</li>
+		<li>良好的无障碍支持</li>
+		<li>自适应布局</li>
+		<li>纯静态页面</li>
+		<li>使用 Astro 孤岛提供其他框架组件展示</li>
+	</ul>
+  <h2>开发中的功能</h2>
+  <p>
+    目前，还有部分功能正在建设中！等到建设完毕后将即时发布，可能进度稍慢，还请海涵。
+		目前的 Roadmap 如下：
+  </p>
+	<ul>
+		<li>部分样式优化</li>
+		<li>单元测试</li>
+		<li>全站搜索</li>
+    <li>首页模块</li>
+		<li>明暗模式</li>
+		<li>工具模块</li>
+		<li>文档模块</li>
+		<li>代码片段</li>
+		<li>i18n 支持</li>
+	</ul>
+</Layout>

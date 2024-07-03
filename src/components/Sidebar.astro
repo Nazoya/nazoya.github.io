@@ -1,0 +1,19 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import SidebarMenu from './SidebarMenu.astro';
+import type { IMenuItem } from '@/types/local';
+
+export interface Props extends HTMLAttributes<'aside'> {
+  flatMode?: boolean;
+  noCollapse?: boolean;
+  items: IMenuItem[];
+}
+
+const { class: classname, items,  flatMode, noCollapse, ...props } = Astro.props;
+
+---
+
+
+<aside class:list={[classname]} {...props}>
+  <SidebarMenu items={items} flatMode={flatMode} noCollapse={noCollapse} />
+</aside>

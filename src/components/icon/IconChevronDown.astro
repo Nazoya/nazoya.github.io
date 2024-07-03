@@ -1,0 +1,16 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import IconSVG from './IconSVG.astro';
+
+interface Props extends HTMLAttributes<'svg'> {}
+
+const { type, class: classname, ...props } = Astro.props;
+---
+
+<IconSVG class={classname} {...props}>
+  <path
+    stroke-linecap='round'
+    stroke-linejoin='round'
+    d='m19.5 8.25-7.5 7.5-7.5-7.5'></path>
+</IconSVG>
+

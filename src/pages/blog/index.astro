@@ -1,0 +1,28 @@
+---
+import { SITE_TITLE, SITE_DESCRIPTION, BLOG_PAGE_SIZE } from '@/consts';
+import { blogsSortedByPubDate } from '@/utils/collection-blog';
+import BlogCollection from '@/components/feature/BlogCollection.astro';
+import { paginate } from '@/utils/paginate';
+import Pagination from '@/components/Pagination.astro';
+const routes = paginate(blogsSortedByPubDate, { pageSize: BLOG_PAGE_SIZE });
+const blogs = routes.length > 0 ? routes[0].props.data : [];
+const lastPage = routes.length > 0 ? routes[0].props.lastPage : 1;
+---
+
+<BlogCollection
+  title={`博客 | ${SITE_TITLE}`}
+  description={SITE_DESCRIPTION}
+  items={blogs}
+>
+  {
+    lastPage !== 1 && (
+      <Pagination
+        class='border-t py-3 sm:px-0'
+        slot='pagination'
+        current={1}
+        totalPage={lastPage}
+        generateURL={(page) => `/blog/page/${page}`}
+      />
+    )
+  }
+</BlogCollection>

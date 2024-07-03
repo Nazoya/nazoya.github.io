@@ -1,0 +1,121 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import type { IMenuItem } from '@/types/local';
+import IconChevronDown from './icon/IconChevronDown.astro';
+
+interface Props extends HTMLAttributes<'ul'> {
+  flatMode?: boolean;
+  noCollapse?: boolean;
+  items: IMenuItem[];
+}
+
+const { items, flatMode, noCollapse, class: classname, ...props } = Astro.props;
+---
+
+<ul class:list={['list-none text-sm', classname]} {...props}>
+  {
+    items.map((item) => {
+      const { open = true, items, link, active } = item;
+      const hasChildren = items && items.length >= 0;
+      const zeroChilden = items && items.length === 0;
+      const isURLValid = typeof link === 'string';
+      const isActive = active;
+      // 如果没有 items 属性，那么视为没有孩子，为普通链接成员
+      if (!hasChildren) {
+        return (
+          <li class:list={['link-omit mb-2 cursor-pointer']}>
+            <a
+              href={link}
+              class:list={[
+                'inline-block w-full',
+                isActive &&
+                  'text-accient visited:text-accient hover:text-accient active:text-accient',
+                !isActive && isURLValid && 'hover:text-accient',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        );
+      }
+
+      // 如果开启非折叠模式，隐藏相关逻辑和图标
+      // 其中，如果同时开启打平模式，放大标题
+      // TODO：移除此功能，并添加具体类以便后续样式覆盖
+      if (noCollapse) {
+        return (
+          <>
+            <li
+              class:list={[
+                'link-omit list-none pr-7 mb-2 font-bold',
+                flatMode ? 'text-lg' : 'text-base',
+              ]}
+            >
+              {typeof link !== 'string' ? (
+                <span
+                  class:list={[
+                    'inline-block w-full',
+                    isActive &&
+                      'text-accient visited:text-accient hover:text-accient active:text-accient',
+                    !isActive && isURLValid && 'hover:text-accient',
+                  ]}
+                >
+                  {item.label}
+                </span>
+              ) : (
+                <a
+                  href={link}
+                  class:list={[
+                    'inline-block w-full',
+                    isActive &&
+                      'text-accient visited:text-accient hover:text-accient active:text-accient',
+                    !isActive && isURLValid && 'hover:text-accient',
+                  ]}
+                >
+                  <span>{item.label}</span>
+                </a>
+              )}
+            </li>
+            <Astro.self items={items} class:list={[!flatMode && 'pl-4']} />
+          </>
+        );
+      }
+
+      // 否则，正常返回
+      return (
+        <li>
+          <details open={open}>
+            <summary
+              class:list={[
+                'relative link-omit list-none pr-7 py-1 cursor-pointer select-none text-base font-bold',
+              ]}
+            >
+              <a
+                href={link}
+                class:list={[
+                  'inline-block w-full',
+                  isActive &&
+                    'text-accient visited:text-accient hover:text-accient active:text-accient',
+                  !isActive && isURLValid && 'hover:text-accient',
+                ]}
+              >
+                <span>{item.label}</span>
+              </a>
+              {!zeroChilden && (
+                <IconChevronDown class='icon absolute z-20 top-1/2 right-4 size-4 transition-transform -translate-y-1/2 -rotate-90' />
+              )}
+            </summary>
+            <Astro.self items={items} class:list={[!flatMode && 'pl-4']} />
+          </details>
+        </li>
+      );
+    })
+  }
+</ul>
+
+<style>
+  details[open],
+  details[open] > summary > .icon {
+    --tw-rotate: 0;
+  }
+</style>

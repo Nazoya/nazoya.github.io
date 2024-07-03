@@ -1,0 +1,195 @@
+---
+import type { PagefindSearchFragment } from '../types/pagefind';
+
+const result: PagefindSearchFragment = {
+  url: '/blog/using-mdx/',
+  content:
+    '2022年7月2日 Using MDX. This theme comes with the @astrojs/mdx integration installed and configured in your astro.config.mjs config file. If you prefer not to use MDX, you can disable support by removing the integration from your config file. Why MDX? MDX is a special flavor of Markdown that supports embedded JavaScript & JSX syntax. This unlocks the ability to mix JavaScript and UI Components into your Markdown content for things like interactive charts or alerts. If you have existing content authored in MDX, this integration will hopefully make migrating to Astro a breeze. Example. Here is how you import and use a UI component inside of MDX. When you open this page in the browser, you should see the clickable button below. Embedded component in MDX. More Links. MDX Syntax Documentation. Astro Usage Documentation. Note: Client Directives are still required to create interactive components. Otherwise, all components in your MDX will render as static HTML (no JavaScript) by default.',
+  word_count: 192,
+  filters: {},
+  meta: { title: 'Using MDX' },
+  anchors: [
+    { element: 'h2', id: 'why-mdx', text: 'Why MDX?', location: 49 },
+    { element: 'h2', id: 'example', text: 'Example', location: 111 },
+    { element: 'h2', id: 'more-links', text: 'More Links', location: 149 },
+  ],
+  weighted_locations: [
+    { weight: 1, balanced_score: 512.1433, location: 58 },
+    { weight: 1, balanced_score: 512.1433, location: 81 },
+  ],
+  locations: [58, 81],
+  raw_content:
+    '2022​年​7​月​2​日 ​Using ​MDX​. ​This ​theme ​comes ​with ​the ​@​astrojs​/​mdx ​integration ​installed ​and ​configured ​in ​your ​astro.config.mjs ​config ​file​. ​If ​you ​prefer ​not ​to ​use ​MDX​, ​you ​can ​disable ​support ​by ​removing ​the ​integration ​from ​your ​config ​file​. ​Why ​MDX​? ​MDX ​is ​a ​special ​flavor ​of ​Markdown ​that ​supports ​embedded ​Java​Script ​& ​JSX ​syntax​. ​This ​unlocks ​the ​ability ​to ​mix ​Java​Script ​and ​UI ​Components ​into ​your ​Markdown ​content ​for ​things ​like ​interactive ​charts ​or ​alerts​. ​If ​you ​have ​existing ​content ​authored ​in ​MDX​, ​this ​integration ​will ​hopefully ​make ​migrating ​to ​Astro ​a ​breeze​. ​Example​. ​Here ​is ​how ​you ​import ​and ​use ​a ​UI ​component ​inside ​of ​MDX​. ​When ​you ​open ​this ​page ​in ​the ​browser​, ​you ​should ​see ​the ​clickable ​button ​below​. ​Embedded ​component ​in ​MDX​. ​More ​Links​. ​MDX ​Syntax ​Documentation​. ​Astro ​Usage ​Documentation​. ​Note​: ​Client ​Directives ​are ​still ​required ​to ​create ​interactive ​components​. ​Otherwise​, ​all ​components ​in ​your ​MDX ​will ​render ​as ​static ​HTML ​(​no ​Java​Script​) ​by ​default​.',
+  raw_url: '/blog/using-mdx/',
+  excerpt:
+    'a special flavor of <mark>Markdown </mark>that supports embedded JavaScript & JSX syntax. This unlocks the ability to mix JavaScript and UI Components into your <mark>Markdown </mark>content for',
+  sub_results: [
+    {
+      title: 'Why MDX?',
+      url: '/blog/using-mdx/#why-mdx',
+      anchor: { element: 'h2', id: 'why-mdx', text: 'Why MDX?', location: 49 },
+      weighted_locations: [
+        { weight: 1, balanced_score: 512.1433, location: 58 },
+        { weight: 1, balanced_score: 512.1433, location: 81 },
+      ],
+      locations: [58, 81],
+      excerpt:
+        'a special flavor of <mark>Markdown </mark>that supports embedded JavaScript & JSX syntax. This unlocks the ability to mix JavaScript and UI Components into your <mark>Markdown </mark>content for',
+    },
+  ],
+};
+---
+
+<div id='doc-search'>
+  <input
+    type='search'
+    class='transition-[width] w-[240px] h-10 py-1 px-4 focus:w-[320px]'
+    placeholder='输入以检索内容'
+  />
+  <ul id='search-container' class='hidden absolute rounded-lg overflow-hidden bg-white w-[320px]'>
+      21222
+  </ul>
+  <template id='search-item'>
+    <li class='block mb-2 last-of-type:mb-0 border-b last-of-type:border-none px-4 py-2 hover:bg-gray-300 link-omit'>
+      <a href={result.url} title={result.meta.title}>
+        <div class='text-lg font-bold'>{result.meta.title}</div>
+        <div class='text-sm font-thin overflow-hidden line-clamp-2'>{result.url}</div>
+      </a>
+    </li>
+  </template>
+</div>
+
+<style>
+  #doc-search > input #doc-search > input:focus,
+  #doc-search > input.active {
+    width: 320px;
+  }
+</style>
+
+<script>
+import type { Pagefind } from '../types/pagefind';
+
+  class SearchItem extends HTMLElement {
+    constructor() {
+      super();
+    }
+
+
+
+    connectedCallback() {
+      // 创建影子根
+      //   const shadow = this.attachShadow({ mode: 'open' });
+      //   // 创建几个 span
+      //   const wrapper = document.createElement('span');
+      //   wrapper.setAttribute('class', 'wrapper');
+      //   const icon = document.createElement('span');
+      //   icon.setAttribute('class', 'icon');
+      //   icon.setAttribute('tabindex', 0);
+      //   const info = document.createElement('span');
+      //   info.setAttribute('class', 'info');
+      //   // 获取属性内容然后将其放入 info 这个 span 内
+      //   const text = this.getAttribute('data-text');
+      //   info.textContent = text;
+      //   // 插入图标
+      //   let imgUrl;
+      //   if (this.hasAttribute('img')) {
+      //     imgUrl = this.getAttribute('img');
+      //   } else {
+      //     imgUrl = 'img/default.png';
+      //   }
+      //   const img = document.createElement('img');
+      //   img.src = imgUrl;
+      //   icon.appendChild(img);
+      //   // 创建一些 CSS 应用于影子 DOM
+      //   const style = document.createElement('style');
+      //   console.log(style.isConnected);
+      //   style.textContent = `
+      //   .wrapper {
+      //     position: relative;
+      //   }
+      //   .info {
+      //     font-size: 0.8rem;
+      //     width: 200px;
+      //     display: inline-block;
+      //     border: 1px solid black;
+      //     padding: 10px;
+      //     background: white;
+      //     border-radius: 10px;
+      //     opacity: 0;
+      //     transition: 0.6s all;
+      //     position: absolute;
+      //     bottom: 20px;
+      //     left: 10px;
+      //     z-index: 3;
+      //   }
+      //   img {
+      //     width: 1.2rem;
+      //   }
+      //   .icon:hover + .info, .icon:focus + .info {
+      //     opacity: 1;
+      //   }
+      // `;
+      //   // 将创建好的元素附加到影子 DOM 上
+      //   shadow.appendChild(style);
+      //   console.log(style.isConnected);
+      //   shadow.appendChild(wrapper);
+      //   wrapper.appendChild(icon);
+      //   wrapper.appendChild(info);
+    }
+  }
+
+  customElements.define('search-item', SearchItem);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    /**
+     * 为搜索添加交互
+     */
+    const input = document.querySelector('#doc-search > input');
+    async function search(e: Event) {
+      const pagefind = (await import('/pagefind/pagefind.js'!)) as Pagefind;
+      pagefind.init();
+
+      const v = (e.target as HTMLInputElement)?.value;
+      const out = await pagefind.debouncedSearch(v);
+      if (!out) {
+        return;
+      }
+      const pageSize = 5;
+
+      /**
+       * 前端分页
+       */
+      for await (const _ of out.results
+        .slice(0, pageSize)
+        .map((i) => i.data())) {
+        // console.info(d);
+        // console.info(JSON.stringify(d));
+      }
+
+      function isHTMLElement(el: Node | null) {
+        if (el) {
+          return el as HTMLElement;
+        }
+        return null;
+      }
+
+      const inputElement = isHTMLElement(document.querySelector('#doc-search > input'));
+      const container = isHTMLElement(document.querySelector('#search-container'));
+      const seachDrop = document.createElement('search-item');
+      console.info(container, document.querySelector('#search-container'));
+
+      if (!container) {
+        return;
+      }
+
+      const { top, height, left } = inputElement!.getBoundingClientRect();
+      container.style.left = `${left}px`;
+      container.style.top = `${top + height + 10}px`;
+
+      container.append(seachDrop);
+      container.classList.remove('hidden');
+    }
+
+    input && input.addEventListener('input', search);
+  });
+</script>

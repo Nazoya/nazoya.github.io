@@ -1,0 +1,22 @@
+---
+import IconCross from '../icon/IconCross.astro';
+
+type Props = {
+  tag: string;
+}
+
+const { tag } = Astro.props;
+
+---
+
+<aside slot='top' class='text-2xl mb-2 text-[0px]'>
+  <span class='text-lg'>标签：</span>
+  <a href='/blog'>
+    <div
+      class='relative inline-flex items-center pl-2 pr-4 py-1 text-xl rounded-md bg-gray-200 cursor-pointer select-none whitespace-nowrap'
+    >
+      <IconCross class='size-4 translate-y-[0.5px]' />
+      <span class='ml-2'>{tag}</span>
+    </div>
+  </a>
+</aside>

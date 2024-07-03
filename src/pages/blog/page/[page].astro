@@ -1,0 +1,48 @@
+---
+/**
+ * 博客全部类型时的分页页面
+ */
+import { SITE_TITLE, SITE_DESCRIPTION, BLOG_PAGE_SIZE } from '@/consts';
+import BlogCollection from '@/components/feature/BlogCollection.astro';
+import { blogsSortedByPubDate } from '../../../utils/collection-blog';
+import type { InferGetStaticPropsType } from 'astro';
+import { paginate } from '@/utils/paginate';
+import Pagination from '@/components/Pagination.astro';
+import { canonicalURL } from '@/utils/tools';
+
+export const getStaticPaths = async function () {
+  const posts = blogsSortedByPubDate;
+  return paginate(posts, { pageSize: BLOG_PAGE_SIZE });
+};
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { data: blogs, currentPage, lastPage } = Astro.props;
+---
+
+<BlogCollection
+  title={`博客，第${currentPage}页 | ${SITE_TITLE}`}
+  description={SITE_DESCRIPTION}
+  items={blogs}
+>
+  {
+    (
+      <Fragment slot='head'>
+        {currentPage == 1 && (
+          <link rel='canonical' href={canonicalURL('/blog', Astro.site)} />
+        )}
+      </Fragment>
+    )
+  }
+  {
+    lastPage !== 1 && (
+      <Pagination
+        class='border-t py-3 sm:px-0'
+        slot='pagination'
+        current={currentPage}
+        totalPage={lastPage}
+        generateURL={(page) => `/blog/page/${page}`}
+      />
+    )
+  }
+</BlogCollection>

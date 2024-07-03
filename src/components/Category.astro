@@ -1,0 +1,239 @@
+---
+/**
+ * 章节目录：
+ * 1. 支持显示当前文章的标题；
+ * 2. 支持显示当前所在小节的标题高亮；
+ * 3. 支持显示当前所在小节路径标题高亮；
+ * 4. 支持点击跳转章节。
+ */
+
+import type { MarkdownHeading } from 'astro';
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'aside'> {
+  headings: MarkdownHeading[];
+  maxHeadingLevel?: number;
+  minHeadingLevel?: number;
+}
+
+const { headings = [], maxHeadingLevel = 3, minHeadingLevel = 2, class: classname, ...props } = Astro.props;
+
+let prevDepth = Number.MAX_SAFE_INTEGER;
+let rootDepth = Number.MAX_SAFE_INTEGER;
+let justifyDepth = 0;
+let path: string[] = [];
+const categoryItems = [];
+const categoryDict: Record<string, string[]> = {};
+
+for (const heading of headings) {
+  const { depth } = heading;
+  if (depth < minHeadingLevel || depth > maxHeadingLevel) {
+    continue;
+  }
+
+  if (depth === minHeadingLevel) {
+    justifyDepth = 0;
+    rootDepth = minHeadingLevel;
+    path = [heading.slug];
+  } else if (depth > prevDepth) {
+    justifyDepth += 1;
+    path = [...path, heading.slug];
+  } else if (depth === prevDepth) {
+    justifyDepth = justifyDepth;
+    path = [...path.slice(0, path.length - 1), heading.slug];
+  } else {
+    if (depth > rootDepth) {
+      justifyDepth = 1;
+      path = [...path.slice(0, 1), heading.slug];
+    } else {
+      rootDepth = depth;
+      justifyDepth = 0;
+      path = [heading.slug];
+    }
+  }
+
+  prevDepth = depth;
+
+  categoryItems.push({ justifyDepth, heading, path });
+  categoryDict[heading.slug] = path;
+}
+---
+
+<aside
+  id='category'
+  class:list={['py-2 px-4 text-sm leading-1.5', classname]}
+  data-message={JSON.stringify(categoryDict)}
+  {...props}
+>
+  <ul class='max-h-screen overflow-auto'>
+    <div class='mb-2 font-bold text-base'>本章内容</div>
+    {
+      categoryItems.map((item) => {
+        const {
+          heading: { slug, text },
+          justifyDepth,
+        } = item;
+
+        return (
+          <li
+            style={`padding-left: ${justifyDepth * 1}rem`}
+            class='py-1 link-omit'
+            data-anchor-id={slug}
+          >
+            <a class='hover:text-accient' href={`#${slug}`}>{text}</a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</aside>
+
+
+<style>
+  ul {
+    list-style: none;
+    margin: 0;
+    line-height: 1.5;
+    font-weight: 400;
+    scrollbar-width: thin;
+  }
+
+  li.active {
+    @apply text-accient;
+
+    & > a:target {
+      margin-top: 40px !important;
+    }
+  }
+  
+</style>
+
+
+<script>
+  interface CategoryLinkRow {
+    id: string;
+    target: HTMLElement;
+    index: number;
+    path: string[];
+    anchor: null | HTMLElement;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const set = new Set<string>();
+    const categoryEl = document.querySelector('#category')!;
+    let activeElement: CategoryLinkRow | null | undefined = null;
+    const els = document.querySelectorAll('h1,h2,h3,h4,h5,h6,h7,h8,h9');
+    const categoryDict = JSON.parse(
+      categoryEl.getAttribute('data-message') ?? '{}'
+    );
+    console.info(els);
+    // 过滤掉不允许显示的标题，使用 map 存储页面中的对应标题元素及其元信息
+    const map = new Map<string, CategoryLinkRow | null>(
+      Array.from(els).map((el, index) => [
+        el.id,
+        categoryDict[el.id]
+          ? {
+              id: el.id,
+              target: el as HTMLElement,
+              index,
+              path: categoryDict[el.id],
+              anchor: null,
+            }
+          : null,
+      ])
+    );
+
+    function getRow(id: string) {
+      return map.get(id);
+    }
+
+    function getAnchor(id: string) {
+      const row = map.get(id);
+      let nextElement = row?.anchor;
+      if (!nextElement) {
+        nextElement = categoryEl.querySelector(
+          `li[data-anchor-id=${id}]`
+        ) as HTMLElement;
+
+        row && (row.anchor = nextElement);
+      }
+
+      return nextElement;
+    }
+
+    if (!els) {
+      return;
+    }
+
+    const elementsToRemove = new Set<string>();
+    const observer = new IntersectionObserver(
+      function (entries) {
+        // console.info(entries)
+        const detectedEls = entries
+          .map(({ target, isIntersecting }) => ({
+            target,
+            isIntersecting,
+          }));
+
+        for (const el of detectedEls) {
+          console.info(el.target.id, el.isIntersecting)
+          if (!map.get(el.target.id)) {
+            continue;
+          }
+          // 应该确保至少有一个在集合中，借助一个额外的队列存储需要删除的元素
+          if (el.isIntersecting) {
+            for (const id of elementsToRemove) {
+              set.delete(id);
+            }
+            elementsToRemove.clear();
+            set.add(el.target.id);
+          } else {
+            if (set.size === 1) {
+              elementsToRemove.add(el.target.id);
+              continue;
+            }
+            set.delete(el.target.id);
+          }
+        }
+        // console.info(set);
+
+        // 找到最上层的 标题
+        const items = Array.from(set.values())
+          .map((item) => ({
+            target: item,
+            index: map.get(item)?.index ?? 0,
+            id: map.get(item)?.id,
+          }))
+          .sort((a, b) => a.index - b.index);
+
+        const [el] = items;
+
+        const nextElement = el && el.id ? getRow(el.id) : null;
+
+        requestAnimationFrame(function () {
+          if (activeElement && activeElement.path) {
+            const { path } = activeElement;
+            for (const id of path) {
+              getAnchor(id)?.classList.remove('active');
+            }
+          }
+
+          activeElement = nextElement;
+
+          if (activeElement && activeElement.path) {
+            const { path } = activeElement;
+            // console.info(activeElement, path);
+            for (const id of path) {
+              getAnchor(id)?.classList.add('active');
+            }
+          }
+        });
+      },
+      { rootMargin: '-56px 0px -50% 0px', threshold: 1 }
+    );
+
+    for (const el of els) {
+      observer.observe(el);
+    }
+  });
+</script>

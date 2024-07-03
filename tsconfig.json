@@ -1,0 +1,10 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "exclude": ["public", "dist"],
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "strictNullChecks": true
+  }
+}

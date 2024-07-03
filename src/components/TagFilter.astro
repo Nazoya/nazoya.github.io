@@ -1,0 +1,77 @@
+---
+import TagLink from './TagLink.astro';
+
+/**
+ * 1. 如果当前展示默认类别的标签，最左侧显示当前标签，点击可取消
+ * 2. 展示剩余非激活状态的标签
+ * 3. 如果没有提供任何标签，不显示
+ */
+
+interface Props {
+  items: string[];
+}
+
+// const { items } = Astro.props;
+
+// const { tag } = Astro.params;
+let tag = '';
+// const isAllTags = typeof tag === 'undefined';
+// const filteredTags = isAllTags ? items : items.filter((item) => item !== tag);
+---
+
+<ul class:list={['flex-none flex w-full max-w-full overflow-hidden link-omit', 'text-sm']}>
+  <TagLink href='/blog' active>
+    {tag}
+  </TagLink>
+  <TagLink href='/blog' >
+    {tag}
+  </TagLink>
+  <TagLink href='/blog' >
+    {tag}
+  </TagLink>
+  <TagLink href='/blog' >
+    {tag}
+  </TagLink>
+
+  <!-- {
+    !isAllTags && (
+      <a href='/blog'>
+        <li class:list={[baseCls]}>
+          <span>
+            x
+          </span>
+          <span>{tag}</span>
+        </li>
+      </a>
+    )
+  }
+
+  {
+    filteredTags.map((item) => (
+      <a href={`/blog/tag/${item}`}>
+        <li class:list={[baseCls]}>{item}</li>
+      </a>
+    ))
+  } -->
+</ul>
+
+<style>
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li > a {
+    @apply w-full h-full;
+  }
+
+  .tag {
+    @apply text-neutral-700 transition-colors hover:text-black min-w-16 px-2 py-1 rounded text-base hover:bg-slate-300 text-center relative;
+  }
+
+  .active {
+    /* @apply text-white bg-gray-900 hover:bg-gray-900; */
+    @apply text-black bg-slate-300 font-bold;
+  }
+</style>

@@ -1,0 +1,85 @@
+---
+// Import the global.css file here so that it is included on
+// all pages through the use of the <BaseHead /> component.
+import '@/styles/base.css';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  version?: string;
+  canoicalURLPath?: string;
+}
+
+const {
+  title,
+  description,
+  image = '/blog-placeholder-1.jpg',
+  version = 'v1',
+} = Astro.props;
+const versionStr = version ? `?${version}` : '';
+const mediaImageURL = image ? new URL(image, Astro.url) : '';
+
+---
+
+<!-- Global Metadata -->
+<meta charset='utf-8' />
+<meta name='viewport' content='width=device-width,initial-scale=1' />
+<link rel='shortcut icon' href={`/favicon.ico${versionStr}`} />
+<link
+  rel='icon'
+  type='image/svg+xml'
+  href={`/favicon.svg${versionStr}`}
+  sizes='any'
+/>
+<link rel='touchicon' type='image/png' href={`/touchicon-180${versionStr}`} />
+<link
+  rel='apple-touch-icon'
+  type='image/svg+xml'
+  href={`/favicon.svg${versionStr}`}
+  sizes='any'
+/>
+<meta name='generator' content={Astro.generator} />
+
+<!-- Font preloads -->
+<!-- <link
+  rel='preload'
+  href='/fonts/atkinson-regular.woff'
+  as='font'
+  type='font/woff'
+  crossorigin
+/> -->
+
+<!-- Canonical URL -->
+<!-- <link rel='canonical' href={canonicalURL} /> -->
+
+<!-- Primary Meta Tags -->
+<title>{title}</title>
+<meta name='title' content={title} />
+<meta name='description' content={description} />
+
+<!-- Open Graph / Facebook -->
+<meta property='og:type' content='website' />
+<meta property='og:url' content={Astro.url} />
+<meta property='og:title' content={title} />
+<meta property='og:description' content={description} />
+{mediaImageURL && <meta property='og:image' content={mediaImageURL} />}
+
+
+<!-- Twitter -->
+<meta property='twitter:card' content='summary_large_image' />
+<meta property='twitter:url' content={Astro.url} />
+<meta property='twitter:title' content={title} />
+<meta property='twitter:description' content={description} />
+{mediaImageURL && <meta property='twitter:image' content={mediaImageURL} />}
+
+
+<!-- Color Scheme -->
+<meta name='color-scheme' content='light dark' />
+<script is:inline>
+  /**
+   * @todo Scheme
+   */
+  // const preferScheme = window.localStorage.getItem('prefer-scheme');
+</script>

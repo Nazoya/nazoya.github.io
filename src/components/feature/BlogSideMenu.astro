@@ -1,0 +1,74 @@
+---
+import Sidebar, {
+  type Props as SidebarProps,
+} from '@/components/Sidebar.astro';
+import { blogsSortedByUpdateAndPubDate, tags } from '@/utils/collection-blog';
+import type { IMenuItem, IContentCollection } from '@/types/local';
+import { BLOG_RECENT_SIZE } from '@/consts';
+
+function indicateIsActive(link: string) {
+  const noTrailingSlash = link.lastIndexOf('\/') === link.length - 1 ? link.slice(0, link.length - 1) : link;
+  // tag/*$ tag/*/$ tag/*/*
+  const isCurrentRegExp = new RegExp(`${noTrailingSlash}(\/.*)?$`);
+  return isCurrentRegExp.test(pathname);
+}
+
+const { pathname } = Astro.url;
+// blog/tag/heading vs blog/tag/heading
+// blog/tag/heading/page/* vs blog/tag/heading
+function blogToMenuItem(blog: IContentCollection<'blog'>) {
+  const { link, data: { title }} = blog;
+  if (typeof link !== 'string') {
+    return {
+      label: title,
+    };
+  }
+
+
+  return {
+    label: title,
+    link,
+  };
+}
+
+const items: IMenuItem[] = [
+  {
+    label: '最近更新',
+    items: blogsSortedByUpdateAndPubDate
+      .slice(0, BLOG_RECENT_SIZE)
+      .map(blogToMenuItem),
+  },
+  // {
+  //   label: '月度归档',
+  //   items: tags.map(tag => ({label: `${tag}`, link: `/blog/tag/${tag}`})),
+  // },
+  {
+    label: '文章标签',
+    items: tags.map((tag) => {
+      const link = `/blog/tag/${tag}`;
+      return ({
+        label: `${tag}`,
+        link,
+        active: indicateIsActive(link),
+      });
+    }),
+  },
+  // {
+  //   label: '其他页面',
+  //   items: [],
+  // }
+];
+
+type Props = Omit<SidebarProps, 'items' | 'noCollapse' | 'flatMode'>;
+
+const { class: classname } = Astro.props;
+---
+
+<Sidebar
+  class:list={[
+    classname,
+  ]}
+  items={items}
+  noCollapse
+  flatMode
+/>
