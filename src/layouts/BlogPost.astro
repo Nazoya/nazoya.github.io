@@ -23,20 +23,18 @@ const hasEditPage = typeof editPage === 'string';
     <BaseHead title={`${title} | ${SITE_TITLE}`} description={description} />
   </head>
   <body>
-    <Header class='fixed w-full z-10 header' />
-    <div class='flex mx-auto sm:px-12 max-w-screen-xl content'>
-      <main class='flex-auto flex w-full py-6 px-6 min-w-0'>
+    <Header class='fixed top-0 w-full z-10 h-[var(--header-height,3.5rem)]' />
+    <div
+      class='flex mx-auto sm:px-12 max-w-screen-xl pt-[var(--header-height,3.5rem)]'
+    >
+      <main class='flex-auto flex w-full py-6 px-6 min-w-0 >
         <article
           class:list={['only:justify-center overflow-hidden', 'mx-auto']}
           data-pagefind-body
           data-pagefind-meta={`pubDate: ${pubDate}, updatedDate: ${updatedDate}, type: blog}`}
         >
           <div class='w-full rounded-xl overflow-hidden'>
-            {
-              heroImage && (
-                <img class='min-w-[800px]' src={heroImage} alt='' />
-              )
-            }
+            {heroImage && <img class='min-w-[800px]' src={heroImage} alt='' />}
           </div>
           <div class='prose sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4'>
             <div class='mb-4 py-4 text-center leading-0'>
@@ -101,30 +99,53 @@ const hasEditPage = typeof editPage === 'string';
       </main>
       {
         hasCategory && (
-          <div class='flex-auto sticky sidebar-right self-start hidden mt-4 top-[calc(var(--header-height)+1rem)] px-2 border-l md:block'>
+          <div class='flex-auto sticky w-[var(--sidebar-right-width,20rem)] self-start hidden mt-4 top-[calc(var(--header-height)+1rem)] px-2 border-l md:block'>
             <slot name='category' />
           </div>
         )
       }
     </div>
     <Footer />
-    <style>
-      .header {
-        height: var(--header-height, 3.5rem);
-      }
-
-      .content {
-        padding-top: var(--header-height, 3.5rem);
-      }
-
-      .sidebar-left {
-        width: var(--sidebar-left-width, 20rem);
-        top: var(--header-height, 3.5rem);
-      }
-
-      .sidebar-right {
-        width: var(--sidebar-right-width, 20rem);
-      }
-    </style>
   </body>
 </html>
+
+<style>
+  @supports (scroll-padding-top: 0) {
+    :root {
+      scroll-padding-top: calc(var(--header-height) + 0.5rem);
+    }
+  }
+  @supports not (scroll-padding-top: 0) {
+    :global(:target::before) {
+      display: block;
+      content: '';
+      margin-top: calc(var(--header-height) * -1 - 0.5rem);
+      padding-top: calc(var(--header-height) + 0.5rem);
+    }
+  }
+  
+
+
+  /* 一些加强特性的 CSS */
+  :global(body[prefer-tips]) article:target {
+    animation: blink .8s ease-in-out 1;
+  }
+
+  @media screen and (prefers-reduced-motion: reduce) {
+    :target {
+      animation: none;
+    }
+  }
+
+  @keyframes blink {
+    0% {
+      outline: transparent 1px solid;
+      outline-offset: 0.2rem;
+    }
+
+    100% {
+      outline: rgb(var(--color-accient) / 1) 1px solid;
+      outline-offset: .2rem;
+    }
+  }
+</style>
