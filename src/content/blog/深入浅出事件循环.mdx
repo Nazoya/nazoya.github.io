@@ -93,24 +93,49 @@ while(true) {
 
 ### 事件循环处理模型
 
-要想摸清事件处理到底如何工作的，浏览器的
-我们可以对照 WHATWG 规范中的[处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)一章，理解整个事件循环核心的工作机制。如果忽略细节继续整体上理解，可以跳过此小节。
+要想摸清事件循环到底如何工作的，还是需要对照 WHATWG 规范中的[处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)一章，理解整个事件循环核心的工作机制。文末对其进行了部分翻译（附带部分对照表以查阅），方便了解其中细节，内容较多，日后将单独整理为文档格式，感兴趣的话可以[前往阅读](#规范翻译)，本文不再赘述。
 
-以下是此章节的翻译，以方便对照。
 
-#### 规范翻译
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 规范翻译
+
 
 事件循环必须通过以下步骤持续运行，只要当其仍然存在：
 1. 声明 <var>oldestTask</var> 和 <var>taskStartTime</var> 为 null。
-2. 如果**事件循环**存在至少有一个**可运行任务**的**任务队列**，那么：
+2. 如果**事件循环**有至少有一个**可运行任务**的**任务队列**，那么：
     1. 声明 <var>taskQueue</var> 为所述任务队列之一，以[实现定义](https://infra.spec.whatwg.org/#implementation-defined)的风格进行选择。
+    <aside>
     注意：记住，[微任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)不是[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue),因此它不会在此步骤中被选中。然而，与[微任务任务源](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-task-source)相关联的[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)。在此场景下，在下一步骤中被选中的[任务](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)原本是[微任务](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，但作为[执行事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop)的一部分被移动了。
+    </aside>
     2. 赋值 <var>taskStartTime</var> 以不安全的共享的当前时间。
     3. 赋值 <var>oldestTask</var> 以 <var>taskQueue</var> 中第一个可运行任务，同时从 <var>taskQueue</var> 中移除。
     4. 如果 <var>oldestTask</var> 非 null，则给定 <var>taskStartTime</var> 和 <var>oldestTask</var> 以记录任务开始时间。
-    5. 赋值事件循环的当前运行任务以 <var>oldestTask</var>。
+    5. 赋值[事件循环]的[当前运行任务]以 <var>oldestTask</var>。
     6. 执行 <var>oldestTask</var> 的步骤。
-    7. 赋值事件循环的当前运行任务为 null，回到初始值。
+    7. 赋值[事件循环]的[当前运行任务]为 null，回到初始值。
     8. 执行一个微任务检查点。
 3. 声明 <var>taskEndTime</var> 为不安全的共享的当前时间。[高精度时间]
 4. 如果 <var>oldestTask</var> 非 null，则：
@@ -131,7 +156,7 @@ while(true) {
         注意：给定未来 50ms 的上限以确保在用户感知阈值内可以响应新的用户输入。
         2. 声明 <var>hasPendingRenders</var> 为 false。
         3. 对于此事件循环的[所有相同循环窗口](https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows)中的每个 <var>windowInSameLoop</var>：
-            1. 如果 <var>windowInSameLoop</var> 的[动画帧回调映射](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#list-of-animation-frame-callbacks)非空，或者，如果用户代理确信 <var>windowInSameLoop</var> 可能存在阻塞的渲染更新，那么赋值 <var>hasPendingRenders</var> 为 true。
+            1. 如果 <var>windowInSameLoop</var> 的[动画帧回调映射](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#list-of-animation-frame-callbacks)非空，或者，如果用户代理确信 <var>windowInSameLoop</var> 可能有阻塞的渲染更新，那么赋值 <var>hasPendingRenders</var> 为 true。
             2. 声明 <var>timerCallbackEstimates</var> 为 <var>windowInSameLoop</var> 的[活动计时器映射](https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#map-of-active-timers)进行[获取全部值](https://infra.spec.whatwg.org/#map-getting-the-values)的结果。
             3. 对于 <var>timerCallbackEstimates</var> 中的每个 <var>timeoutDeadline</var>，如果 <var>timeoutDeadline</var> 小于 <var>deadline</var>，赋值 <var>deadline</var> 以 <var>timeoutDeadline</var>。
         4. 如果 <var>hasPendingRenders</var> 为 true，则：
@@ -148,47 +173,130 @@ while(true) {
     2. 如果该事件循环的所有任务队列都没有任务，且 [WorkerGlobalScope](https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope) 对象的[关闭](https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-closing)标志为 true，则销毁事件循环，中止这些步骤，恢复后续 Web Worker 章节中描述的[运行 worker](https://html.spec.whatwg.org/multipage/workers.html#run-a-worker) 的步骤。
 
 [window 事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#window-event-loop) <var>eventLoop</var> 也必须并行地运行下述步骤，只要当其仍然存在：
-    1. 等待，直到至少有一个[“可通行”（特殊数据结构，这里作名词）](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable) <var>navigable</var>，其[活动文档](https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document)[相关代理](https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent)的事件循环是 <var>eventLoop</var> 可能具有[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)。
+    1. 等待，直到至少有一个[“可通行”（特殊数据结构，这里作名词）](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable) <var>navigable</var>，其[活动文档](https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document)[相关代理](https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent)的事件循环是 <var>eventLoop</var>，且其可能具有[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)。
     2. 赋值 <var>eventLoop</var> 的[上次渲染机会时间](https://html.spec.whatwg.org/multipage/webappapis.html#last-render-opportunity-time)为不安全的共享的当前时间。
     3. 对于每个具有[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)的 <var>navigable</var>，给定 <var>navigable</var> 的[活动窗口](https://html.spec.whatwg.org/multipage/document-sequences.html#nav-window)[以入队一个全局任务](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task)，从而**更新渲染**。
+    <aside>
     注意：这可能会导致出现重复调用以更新渲染。但是，因为它们作为必要渲染步骤，此时没有渲染的必要，所以这些调用不会造成可观测的影响。实现中可以引入进一步的优化，像是仅当此任务尚未入队时才将其入队。但是，要注意该任务在得到处理前，其关联的文档可能变为非活动状态。
+    </aside>
         1. 声明 <var>frameTimestamp</var> 为 <var>eventLoop</var> 的上次渲染机会时间。
         2. 声明 <var>docs</var> 为所有[相关代理](https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent)的事件循环是 <var>eventLoop</var> 的[完全活动](https://html.spec.whatwg.org/multipage/document-sequences.html#fully-active) [文档对象](https://html.spec.whatwg.org/multipage/dom.html#document)，其任意排序但需要满足以下条件：
             * 任何[容器文档](https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document)为 A 的[文档] B 在列表中必须排在 A 之后
-            * 如果由两个文档 A 和 B，均存在相同非 null [容器文档](https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document) C，则 A 和 B 在列表中的顺序必须满足它们在 C 的[节点树](https://dom.spec.whatwg.org/#concept-node-tree)中对应[可导航至容器](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable-container)的[影子包含树顺序](https://dom.spec.whatwg.org/#concept-shadow-including-tree-order)。
+            * 如果由两个文档 A 和 B，均有相同非 null [容器文档](https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document) C，则 A 和 B 在列表中的顺序必须满足它们在 C 的[节点树](https://dom.spec.whatwg.org/#concept-node-tree)中对应[“可通行”容器](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable-container)的[影子包含树顺序](https://dom.spec.whatwg.org/#concept-shadow-including-tree-order)。
         在下述迭代 <var>docs</var> 的步骤中，每个文档对象必须按照其在列表中发现的顺序被处理。
         3. 过滤不可渲染的文档：从 <var>docs</var> 中移除满足下列任意条件的所有文档对象 <var>doc</var>：
             * <var>doc</var> 是[渲染阻塞](https://html.spec.whatwg.org/multipage/dom.html#render-blocked)的；
             * <var>doc</var> 的[可见状态](https://html.spec.whatwg.org/multipage/interaction.html#visibility-state)为 “hidden”；
             * <var>doc</var> 的渲染[因视图转换被阻止](https://drafts.csswg.org/css-view-transitions/#document-rendering-suppression-for-view-transitions)；或
-            * <var>doc</var> 的[节点的“可通行”](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)当前没有[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)。
+            * <var>doc</var> 的[节点“可通行”](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)当前没有[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)。
         注意：在[以并行](https://html.spec.whatwg.org/multipage/infrastructure.html#in-parallel)步骤检查之外，我们还必须在这里检查[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)，因为一些共享相同[事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop)的文档可能不会同时具有渲染机会。
         4. 非必要渲染：从 <var>docs</var> 中移除满足下列所有条件的所有文档对象 <var>doc</var>：
-            * 用户代理坚信更新 <var>doc</var> 节点的“可通行”的渲染不会有任何可见的影响；同时
+            * 用户代理坚信更新 <var>doc</var> 节点“可通行”的渲染不会有任何可见的影响；同时
             * <var>doc</var> [动画帧回调映射](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#list-of-animation-frame-callbacks)为空。
         5. 从 <var>docs</var> 中移除由于其他理由，用户代理坚信其适合跳过更新渲染的所有文档对象 <var>doc</var>。
         注意：
         此步骤标明了过滤不可渲染的文档阻止用户代理在无法向用户呈现新内容时更新渲染。
         此步骤标明了非必要渲染阻止用户代理在没有新内容需要绘制时阻止更新渲染。
         此步骤使用户代理能够因其他理由阻止下列步骤运行，例如，为确保某些[任务](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)在彼此之后能够立刻执行，仅交叉[微任务检查点](https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint)（且不交叉其他，如[动画帧回调](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks)）。具体来说，用户代理可能希望合并计时器回调到一起，而不立刻渲染更新。
-        6. 对于每个 <var>docs</var> 中的 <var>doc</var>，[显示](https://html.spec.whatwg.org/multipage/browsing-the-web.html#reveal) <var>doc</var>。
-        7. 对于每个 <var>docs</var> 中的 <var>doc</var>，如果其[节点的“可通行”](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)是一个[顶级的“可遍历”](https://html.spec.whatwg.org/multipage/document-sequences.html#top-level-traversable)（特殊的数据结构，原文中形作名），为其[刷新自动聚焦候选](https://html.spec.whatwg.org/multipage/interaction.html#flush-autofocus-candidates)。
-        8. 对于每个 <var>docs</var> 中的 <var>doc</var>，运行[调整尺寸步骤](https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
-        9. 对于每个 <var>docs</var> 中的 <var>doc</var>，运行[滚动步骤](https://drafts.csswg.org/cssom-view/#document-run-the-scroll-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
-        10. 对于每个 <var>docs</var> 中的 <var>doc</var>，为 <var>doc</var> [求值媒体查询并报告改变](https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
-        11. 对于每个 <var>docs</var> 中的 <var>doc</var>，为 <var>doc</var> [更新动画并发送事件](https://drafts.csswg.org/web-animations-1/#update-animations-and-send-events)，给定 <var>frameTimestampe</var> 和 <var>doc</var> 的[相关全局对象](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global)作为时间戳，以[传入相对高精度时间](relative high resolution time)。[WEBANIMATIONS](https://html.spec.whatwg.org/multipage/references.html#refsWEBANIMATIONS)
-        12. 对于每个 <var>docs</var> 中的 <var>doc</var>，为 <var>doc</var> [运行全屏步骤](https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps)。
-        13. 对于每个 <var>docs</var> 中的 <var>doc</var>，如果用户代理检测到与任一 [CanvasRenderingContext2D](https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d) 或 [OffscreenCanvasRenderingContext2D](https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d)—— <var>context</var> ——相关联的后备存储已经丢失，则用户代理必须为每个类似的 <var>context</var> 运行**上下文丢失步骤**：
+        6. 对于 <var>docs</var> 中的每个 <var>doc</var>，[显示](https://html.spec.whatwg.org/multipage/browsing-the-web.html#reveal) <var>doc</var>。
+        7. 对于 <var>docs</var> 中的每个 <var>doc</var>，如果其[节点“可通行”](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)是一个[顶级的“可遍历”](https://html.spec.whatwg.org/multipage/document-sequences.html#top-level-traversable)（特殊的数据结构，原文中形作名），为其[刷新自动聚焦候选](https://html.spec.whatwg.org/multipage/interaction.html#flush-autofocus-candidates)。
+        8. 对于 <var>docs</var> 中的每个 <var>doc</var>，运行[调整尺寸步骤](https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
+        9. 对于 <var>docs</var> 中的每个 <var>doc</var>，运行[滚动步骤](https://drafts.csswg.org/cssom-view/#document-run-the-scroll-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
+        10. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [求值媒体查询并报告改变](https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
+        11. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [更新动画并发送事件](https://drafts.csswg.org/web-animations-1/#update-animations-and-send-events)，给定 <var>frameTimestamp</var> 和 <var>doc</var> [相关全局对象](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global)作为时间戳，以[传入相对高精度时间](relative high resolution time)。[WEBANIMATIONS](https://html.spec.whatwg.org/multipage/references.html#refsWEBANIMATIONS)
+        12. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [运行全屏步骤](https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps)。
+        13. 对于 <var>docs</var> 中的每个 <var>doc</var>，如果用户代理检测到与任一 [CanvasRenderingContext2D](https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d) 或 [OffscreenCanvasRenderingContext2D](https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvasrenderingcontext2d)—— <var>context</var> ——相关联的后备存储已经丢失，则用户代理必须为每个类似的 <var>context</var> 运行**上下文丢失步骤**：
             1. 声明 <var>canvas</var> 为 <var>context</var> 的 [canvas](https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-canvas) 属性，如果上下文是一个  [CanvasRenderingContext2D](https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2d)，否则，声明其为 [<var>context</var> 相关的](https://html.spec.whatwg.org/multipage/canvas.html#associated-offscreencanvas-object) OffscreenCanvas 对象。
             2. 赋值 <var>context</var> 的[上下文丢失](https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-context-lost)为 true。
             3. 给定 <var>context</var> 以[重置渲染上下文到其默认状态](https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state)。
             4. 声明 <var>shouldRestore</var> 为于 <var>canvas</var> 上[发送](https://dom.spec.whatwg.org/#concept-event-fire)一个名为 [contextlost](https://html.spec.whatwg.org/multipage/indices.html#event-contextlost) 的事件的结果，该事件的 [cancelable](https://dom.spec.whatwg.org/#dom-event-cancelable) 属性被初始化为 true。
             5. 如果 <var>shouldRestore</var> 为 false，则中止这些步骤。
-            6. 尝试通过使用 <var>context</var> 的属性创建后备存储并将它们与 var{context} 相关联的方法，来恢复 <var>context</var>。如果此方法失败，则中止这些步骤。
+            6. 尝试通过使用 <var>context</var> 的属性创建后备存储并将它们与 <var>context</var> 相关联的方法，来恢复 <var>context</var>。如果此方法失败，则中止这些步骤。
             7. 赋值 <var>context</var> 的上下文丢失为 false。
             8. 于 <var>canvas</var> 上[发送](https://dom.spec.whatwg.org/#concept-event-fire)一个名为 [contextrestored](https://html.spec.whatwg.org/multipage/indices.html#event-contextrestored) 的事件。
-        14.
+        14. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [运行动画帧回调]，给定 <var>frameTimestamp</var> 和 <var>doc</var> [相关全局对象](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global)作为时间戳，以[传入相对高精度时间](relative high resolution time)。
+        15. 声明 <var>unsafeLayoutStartTime</var> 为不安全的共享的当前时间。
+        16. 对于 <var>docs</var> 中的每个 <var>doc</var>：
+            1. 声明 resizeObserverDepth 为 0
+            2. 满足 true 时：
+                1. 为 <var>doc</var> 重新计算样式和更新布局
+                2. 声明 <var>hadInitialVisibleContentVisibilityDetermination</var> 为 false。
+                3. 对于每个“content-visibility”值为[“auto”](https://drafts.csswg.org/css-contain/#propdef-content-visibility)的元素 <var>element</var>：
+                    1. 声明 <var>checkForInitialDetermination</var> 为 true，如果 <var>element</var> 的[视口邻近度](https://drafts.csswg.org/css-contain/#proximity-to-the-viewport)待定，且其非[用户相关的](https://drafts.csswg.org/css-contain/#relevant-to-the-user)。否则，声明 <var>checkForInitialDetermination</var> 为 false。
+                    2. 确定 <var>element</var> 的[视口邻近度](https://drafts.csswg.org/css-contain/#proximity-to-the-viewport)。
+                    3. 如果 <var>checkForInitialDetermination</var> 为 true，且 <var>element</var> 此时是[用户相关的](https://drafts.csswg.org/css-contain/#relevant-to-the-user)，则赋值 <var>hadInitialVisibleContentVisibilityDetermination</var> 为 true。
+                4. 如果 <var>hadInitialVisibleContentVisibilityDetermination</var> 为 true，则[继续](https://infra.spec.whatwg.org/#iteration-continue)。
+                注意：此步骤的意图是为了进行初始视口邻近度确定，其会立即生效，然后在此循环中稍前的某一步骤里的，完成的样式和布局计算中反映出来。非初始的邻近度确定将在下一个[渲染机会](https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity)中生效。[CSSCONTAIN](https://html.spec.whatwg.org/multipage/references.html#refsCSSCONTAIN)
+                5. 为 <var>doc</var> [按深度收集活动的调整尺寸观测](https://w3c.github.io/csswg-drafts/resize-observer-1/#gather-active-observations-h) <var>resizeObserverDepth</var>。
+                6. 如果 <var>doc</var> [有活动的调整尺寸观测](https://w3c.github.io/csswg-drafts/resize-observer-1/#has-active-observations-h)：
+                    1. 赋值 <var>resizeObserverDepth</var> 以给定 <var>doc</var> [广播活动的调整尺寸观测](https://w3c.github.io/csswg-drafts/resize-observer-1/#broadcast-resize-notifications-h)的结果。
+                    2. [继续](https://infra.spec.whatwg.org/#iteration-continue)。
+                7. 否则，中断
+            3. 如果 <var>doc</var> [有跳过的调整尺寸观测]，则给定 <var>doc</var> [传递调整尺寸循环错误](https://w3c.github.io/csswg-drafts/resize-observer-1/#deliver-resize-error)
+        17. 对于 <var>docs</var> 中的每个 <var>doc</var>，如果 <var>doc</var> 的[聚焦区域](https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document)不是一个[可聚焦的区域](https://html.spec.whatwg.org/multipage/interaction.html#focusable-area)，则运行为 <var>doc</var> 的[视口](https://drafts.csswg.org/css2/#viewport) 运行[聚焦步骤](https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps)，且赋值 <var>doc</var> [相关全局对象](https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global)[导航 API](https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigation-api)的[导航进行期间焦点被改变]为 false。
+        示例：比方说，这可能由于元素被添加了 [hidden](https://html.spec.whatwg.org/multipage/interaction.html#attr-hidden) 属性，导致其停止[被渲染](https://html.spec.whatwg.org/multipage/rendering.html#being-rendered)而发生。也可能在 [input](https://html.spec.whatwg.org/multipage/input.html#the-input-element) 元素被[禁用](https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-disabled)时，在该元素上发生。
+        18. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [执行待定的过渡操作](https://drafts.csswg.org/css-view-transitions/#perform-pending-transition-operations)。
+        19. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> [运行更新相交观测步骤]，给定 <var>now</var> 和 <var>doc</var> [相关全局对象]作为时间戳，以传入[相对高精度时间]
+        20. 对于 <var>docs</var> 中的每个 <var>doc</var>，给定不安全的样式和布局开始时间 <var>unsafeStyleAndLayoutStartTime</var>，从而为 <var>doc</var> [记录渲染时间]。
+        21. 对于 <var>docs</var> 中的每个 <var>doc</var>，为 <var>doc</var> 标记绘制时间。
+        22. 对于 <var>docs</var> 中的每个 <var>doc</var>，更新 <var>doc</var> 及其[节点对应“可通行”类型值](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)的渲染和用户界面，以反映当前状态。
+        23. 对于 <var>docs</var> 中的每个 <var>doc</var>，给定 <var>doc</var> 以[处理顶端层移除]。
+“可通行”类型值具有一个渲染机会，如果用户代理当前能够将该值的内容呈现给用户。这考虑了硬件刷新率的限制和用户代理出于性能原因的节流，即使内容在视口之外，其内容也可以是可呈现的。
+“可通行”类型值的渲染机会基于硬件限制和其他因素决定。硬件限制，如显示器的刷新率。其他因素，如页面性能，或是该“可通行”类型值的活动文档可见状态是否为“visible”。渲染机会通常会以恒定间隔发生。
+注意：此规范并未强制要求任何特定的模型以选择渲染机会。但举例来说，如果浏览器尝试达到 60Hz 刷新率，则渲染机会最多每60分之一秒（约 16.7ms）出现一次。如果浏览器发现“可通行”类型值无法维持此速率，它可以降至更可维持的每秒30次渲染机会，而不是间接地掉帧。类似地，如果一个“可通行”类型值不可见，用户代理可以决定将对应页面降至更慢的每秒4个渲染机会，甚至更低。
 
+当用户代理要执行微任务检查点时：
+1. 如果该[事件循环]的[正在执行微任务检查点]为 true，则返回：
+2. 赋值该[事件循环]的[正在执行微任务检查点]为 true。
+3. 满足该[事件循环]非[空]时：
+    1. 声明 <var>oldestMicrotask</var> 为从[事件循环]的[微任务队列]中[出队]的结果。
+    2. 赋值该[事件循环]的[当前运行任务] <var>oldestMicrotask</var>
+    3. 运行 <var>oldestMicrotask</var>
+    <aside>
+      注意：这可能涉及调用脚本化回调，此种回调最终会调用包含再次调用[执行微任务检查点]算法的[运行脚本后清理]的步骤。这就是我们使用[执行微任务检查点]标志避免重入的原因。
+    </aside>
+    4. 赋值该[事件循环]的[当前运行任务]以 null，回到初始值
+4. 对于[负责的事件循环]为该[事件循环]的每个[环境设定对象]，于其上[通知将被拒绝的期约]。
+5. [清理 Indexed Database 事务]。
+6. 执行 [ClearKeptObjects](https://tc39.es/ecma262/#sec-clear-kept-objects)()。
+<aside>
+注意：当 [WeakRef.prototype.deref()] 返回一个对象时，该对象在下次调用 [ClearKeptObjects](https://tc39.es/ecma262/#sec-clear-kept-objects)() 前会保持存活，在这之后它才将被垃圾回收。
+</aside>
+7. 赋值该[事件循环]的[正在执行微任务检查点]为 false。
+8. [为微任务检查点记录时间信息]。
+
+
+当一个并行运行的算法要等待一个稳定状态时，用户代理必须入队一个微任务，然后停止执行（算法的执行将在微任务运行时恢复，正如下列步骤中所描述的那样），该微任务运行以下步骤：
+1. 运行算法的同步部分。
+2. 如果合适，并行地恢复算法的执行，如算法步骤中所述。
+<aside>
+注意：同步部分中的步骤标有⌛。
+</aside>
+
+表示执行事件循环直到满足某一条件 <var>gloal</var> 的算法步骤等同于替换为以下代码步骤：
+1. 声明 <var>task</var> 为该事件循环的当前运行任务。
+<aside>
+注意：任务可以是微任务。
+</aside>
+2. 声明 <var>task source</var> 为任务的源。
+3. 声明 <var>old stack</var> 为[JavaScript 执行上下文栈]的副本。
+4. 清空 [JavaScript 执行上下文栈]。
+5. 执行微任务检查点。
+<aside>
+注意：如果任务时微任务，则由于[正在执行微任务检查点]为 true，因此此步骤将处于无操作状态。
+</aside>
+6. 并行：
+    1. 等待，直到条件 <var>goal</var> 满足。
+    2. 在任务源上入队任务，以便：
+        1. 替换 JavaScript 执行上下文栈为 <var>oldTask</var>。
+        2. 执行原始算法中，该执行事件循环实例后的任何步骤。
+7. 停止 <var>task</var>，允许任何调用它的算法恢复。
+<aside>
+注意：这会导致该事件循环的主要步骤集或执行微任务检查点算法继续。
+</aside>
+<aside>
+注意：与此规范及其他规范中的其他算法不同，其他算法的行为类似于编程语言的函数调用，而执行事件循环更类似于一个宏，它通过扩展为一系列的步骤和操作来减少使用处的打字和缩进。
+</aside>
 
 <table class='text-left'>
   <caption>部分翻译对照表</caption>
@@ -223,93 +331,167 @@ while(true) {
   <tr>
     <td>is not...</td>
     <td>非...</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>for B of A</td>
+    <td>对于 B 中的每个 A</td>
+    <td>对 A 进行迭代，每趟迭代的元素以 B 表示</td>
+  </tr>
+  <tr>
+    <td>while conditions</td>
+    <td>满足某条件时</td>
+    <td>循环语句</td>
   </tr>
    <tr>
     <td>do sth. given ...</td>
-    <td>给定……以做某事</td>
+    <td>给定……以（从而）做某事</td>
     <td>给定参数执行算法</td>
   </tr>
   <tr>
     <td>perform ...</td>
     <td>执行……</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>excute ...</td>
+    <td>执行……</td>
+    <td></td>
   </tr>
   <tr>
     <td>resume</td>
     <td>恢复</td>
+    <td></td>
   </tr>
   <tr>
     <td>continue</td>
     <td>继续</td>
-    <td>继续算法步骤</td>
+    <td>进行算法步骤中循环的下一趟迭代</td>
+  </tr>
+  <tr>
+    <td>break</td>
+    <td>中断</td>
+    <td>跳出当前循环</td>
+  </tr>
+  <tr>
+    <td>otherwise</td>
+    <td>否则</td>
+    <td></td>
   </tr>
   <tr>
     <td>current</td>
     <td>当前</td>
+    <td></td>
   </tr>
   <tr>
     <td>destroy</td>
     <td>销毁</td>
+    <td></td>
   </tr>
   <tr>
     <td>abort</td>
     <td>中止</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>skipped</td>
+    <td>跳过的</td>
+    <td></td>
   </tr>
   <tr>
     <td>detect</td>
     <td>检测到</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>disabled</td>
+    <td>禁用</td>
+    <td></td>
   </tr>
   <tr>
     <td>this/that/the</td>
-    <td>此</td>
+    <td>此/该</td>
+    <td></td>
   </tr>
-   <tr>
+  <tr>
+    <td>invoke</td>
+    <td>调用</td>
+    <td>指调用系统外事物，中文可概括</td>
+  </tr>
+  <tr>
+    <td>call</td>
+    <td>调用</td>
+    <td></td>
+  </tr>
+  <tr>
     <td>spin the event loop</td>
     <td>执行事件循环</td>
-    <td>spin 指高速旋转，此处意译</td>
+    <td>spin 原指高速旋转，计算机科学中指代循环或迭代的执行过程</td>
   </tr>
   <tr>
     <td>environment settings object</td>
     <td>环境设置对象</td>
+    <td></td>
   </tr>
   <tr>
     <td>script evaluation</td>
     <td>脚本求值</td>
+    <td></td>
   </tr>
   <tr>
     <td>append</td>
     <td>添加</td>
+    <td></td>
   </tr>
   <tr>
     <td>set</td>
     <td>集合</td>
+    <td></td>
   </tr>
   <tr>
     <td>map</td>
     <td>映射</td>
+    <td></td>
   </tr>
   <tr>
     <td>list</td>
     <td>列表</td>
+    <td></td>
   </tr>
   <tr>
     <td>resize</td>
     <td>调整尺寸</td>
+    <td></td>
   </tr>
   <tr>
     <td>scroll</td>
     <td>滚动</td>
+    <td></td>
   </tr>
   <tr>
     <td>animation frame callback(s)</td>
     <td>动画帧回调</td>
+    <td></td>
   </tr>
   <tr>
     <td>timer callback(s)</td>
     <td>计时器回调</td>
+    <td></td>
   </tr>
   <tr>
     <td>pending</td>
+    <td>待定</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>suspend</td>
+    <td>挂起</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>block</td>
     <td>阻塞</td>
+    <td></td>
   </tr>
   <tr>
     <td>active</td>
@@ -319,10 +501,12 @@ while(true) {
   <tr>
     <td>microtask checkpoint(s)</td>
     <td>微任务检查点</td>
+    <td></td>
   </tr>
   <tr>
     <td>map of animation frame callbacks</td>
     <td>动画帧回调映射</td>
+    <td></td>
   </tr>
     <tr>
     <td>active window</td>
@@ -332,14 +516,17 @@ while(true) {
   <tr>
     <td>map of active timers</td>
     <td>活动计时器映射</td>
+    <td></td>
   </tr>
   <tr>
     <td>update the rendering</td>
     <td>更新渲染</td>
+    <td></td>
   </tr>
   <tr>
     <td>last render opportunity time</td>
     <td>上个渲染机会</td>
+    <td></td>
   </tr>
   <tr>
     <td>... document</td>
@@ -353,13 +540,18 @@ while(true) {
   </tr>
   <tr>
     <td>navigable</td>
-    <td>“可通行”</td>
-    <td>指一类数据结构，形容词作名词</td>
+    <td>“可通行”类型（的值）</td>
+    <td>navigable 形作名，类型就叫做“可通行”</td>
   </tr>
-   <tr>
+  <tr>
     <td>node navigable</td>
-    <td>节点的“可通行”</td>
-    <td>指一类数据结构，形容词作名词</td>
+    <td>节点对应“可通行”类型值</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>navigable container</td>
+    <td>“可通行”类型值的容器</td>
+    <td></td>
   </tr>
   <tr>
     <td>top-level traversable</td>
@@ -369,34 +561,122 @@ while(true) {
   <tr>
     <td>shadow-including tree order</td>
     <td>影子包含树顺序</td>
+    <td></td>
   </tr>
   <tr>
     <td>render-blocked</td>
     <td>渲染阻塞的</td>
+    <td></td>
   </tr>
   <tr>
     <td>visibility state</td>
     <td>可见状态</td>
+    <td></td>
   </tr>
   <tr>
     <td>view transition(s)</td>
     <td>视图转换</td>
+    <td></td>
   </tr>
   <tr>
     <td>the backing storage</td>
     <td>后备存储</td>
+    <td></td>
   </tr>
   <tr>
     <td>context</td>
     <td>上下文</td>
+    <td></td>
   </tr>
   <tr>
     <td>attribute</td>
     <td>属性</td>
+    <td></td>
   </tr>
   <tr>
     <td>restore</td>
     <td>恢复</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>recalculate styles and update layout</td>
+    <td>重新计算样式和更新布局</td>
+    <td>即重绘和重排，(re)paint 和 layout/(re)flow</td>
+  </tr>
+  <tr>
+    <td>proximity to the viewport</td>
+    <td>视口邻近度</td>
+    <td>原文此时元素可近或远，故译邻近度</td>
+  </tr>
+  <tr>
+    <td>determine</td>
+    <td>确定</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>be not determined</td>
+    <td>待定</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>is not determined</td>
+    <td>待定</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>be relevant to the user</td>
+    <td>用户相关的</td>
+    <td></td>
+  </tr>
+    <tr>
+    <td>resize observer</td>
+    <td>调整尺寸观察者</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>resize observation</td>
+    <td>调整尺寸观测</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>top layer</td>
+    <td>顶端层</td>
+    <td>特殊名词，故据上下文作区分，顶（端）</td>
+  </tr>
+  <tr>
+    <td>rate</td>
+    <td>速率</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>frame rate</td>
+    <td>帧率</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>drop frame</td>
+    <td>丢帧</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>rejected</td>
+    <td>拒绝</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>promise</td>
+    <td>期约</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>notify</td>
+    <td>通知</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>abount rejected promise</td>
+    <td>将被拒绝的期约</td>
+    <td>特殊名词，原文省略了介词以简写</td>
   </tr>
   </tbody>
 </table>
