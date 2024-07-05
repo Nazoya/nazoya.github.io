@@ -9,6 +9,8 @@ import {
   transformerNotationDiff,
   transformerNotationHighlight,
 } from '@shikijs/transformers'
+import { remarkReadingTime, remarkModifiedTime } from './scripts/remark-plugins.mjs';
+
 const DIR = import.meta.dirname;
 
 // https://astro.build/config
@@ -35,14 +37,13 @@ export default defineConfig({
         transformerNotationHighlight(),
       ]
     },
+    remarkPlugins: [remarkMath, remarkModifiedTime, remarkReadingTime],
+    rehypePlugins: [rehypeKatex],
     syntaxHighlight: 'shiki',
     // gfm: true,
   },
   integrations: [
-    mdx({
-      remarkPlugins: [remarkMath],
-			rehypePlugins: [rehypeKatex]
-    }),
+    mdx(),
     sitemap(),
     tailwind({
       applyBaseStyles: false,

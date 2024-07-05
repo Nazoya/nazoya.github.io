@@ -23,13 +23,18 @@ export const getStaticPaths = async function () {
 
 
 const { post: { data, id, render } } = Astro.props;
-const { Content, headings } = await render();
+const { Content, headings, remarkPluginFrontmatter, } = await render();
+console.info(remarkPluginFrontmatter)
 const { repository } = await fetchPackageJSON();
 const isProd = import.meta.env.PROD;
 const contentDevURI = (resolve(CONTENT_BLOG_DIR, id)).replaceAll('\\', '\\\\');
 const editPage = isProd
   ? `${repository as string}/src/contents/blog/${id}`
   : `/__open-in-editor?file=${contentDevURI}`;
+const { lastModified, msForReading, words } = remarkPluginFrontmatter;
+const updateDate = lastModified ? new Date(lastModified) : data.updatedDate;
+const minsForReading = !Number.isNaN(msForReading) ? Math.ceil(msForReading / 1000 / 60) : undefined;
+const wordsCount = !Number.isNaN(words) ? words : undefined;
 ---
 <!-- todo: tranform to local -->
 <link
@@ -39,7 +44,14 @@ const editPage = isProd
     crossorigin="anonymous"
 />
 
-<BlogPost {...data} title={`${data.title}`} editPage={editPage}>
+<BlogPost
+ {...data}
+ updatedDate={updateDate}
+ minsForReading={minsForReading}
+ wordsCount={wordsCount}
+ title={`${data.title}`}
+ editPage={editPage}
+>
   <Content />
   {headings.length > 0 && <Category headings={headings} slot='category' />}
 </BlogPost>

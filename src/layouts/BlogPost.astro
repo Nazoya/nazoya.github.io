@@ -8,9 +8,9 @@ import Tags from '../components/Tags.astro';
 import { SITE_TITLE } from '@/consts';
 import IconEdit from '@/components/icon/IconEdit.astro';
 
-type Props = CollectionEntry<'blog'>['data'] & { editPage?: string };
+type Props = CollectionEntry<'blog'>['data'] & { editPage?: string; minsForReading?: number | string; wordsCount?: number | string; };
 
-const { title, description, pubDate, updatedDate, heroImage, tags, editPage } =
+const { title, description, pubDate, updatedDate, heroImage, tags, editPage, minsForReading, wordsCount } =
   Astro.props;
 const hasCategory = !!(
   await (Astro.slots.has('category') ? Astro.slots.render('category') : '')
@@ -36,12 +36,20 @@ const hasEditPage = typeof editPage === 'string';
           <div class='w-full rounded-xl overflow-hidden'>
             {heroImage && <img class='min-w-[800px]' src={heroImage} alt='' />}
           </div>
-          <div class='prose sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4'>
+          <div class='prose prose-stone sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4'>
             <div class='mb-4 py-4 text-center leading-0'>
               <div class='text-gray-600 mb-2'>
                 <FormattedDate date={pubDate} />
               </div>
               <h1 class='mb-2'>{title}</h1>
+              {
+                (minsForReading || wordsCount) && (
+                  <aside class='text-sm text-gray-600'>
+                    {wordsCount && <span>共 {wordsCount} 字{minsForReading && '，'}</span>}
+                    {minsForReading && <span>{minsForReading}分钟读完</span>}
+                  </aside>
+                )
+              }
               <hr />
             </div>
             <slot />
@@ -115,6 +123,7 @@ const hasEditPage = typeof editPage === 'string';
       scroll-padding-top: calc(var(--header-height) + 0.5rem);
     }
   }
+
   @supports not (scroll-padding-top: 0) {
     :global(:target::before) {
       display: block;
