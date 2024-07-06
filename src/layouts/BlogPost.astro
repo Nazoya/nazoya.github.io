@@ -33,10 +33,10 @@ const hasEditPage = typeof editPage === 'string';
           data-pagefind-body
           data-pagefind-meta={`pubDate: ${pubDate}, updatedDate: ${updatedDate}, type: blog}`}
         >
-          <div class='w-full rounded-xl overflow-hidden'>
+          <div class='w-full min-w-0 rounded-xl overflow-hidden'>
             {heroImage && <img class='min-w-[800px]' src={heroImage} alt='' />}
           </div>
-          <div class='prose prose-stone sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4'>
+          <div class='prose prose-stone min-w-0 sm:max-w-[calc(100%-2em)] m-auto my-4 sm:px-4 break-words'>
             <div class='mb-4 py-4 text-center leading-0'>
               <div class='text-gray-600 mb-2'>
                 <FormattedDate date={pubDate} />
