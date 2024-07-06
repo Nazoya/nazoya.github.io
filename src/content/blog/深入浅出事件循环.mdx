@@ -4,16 +4,19 @@ description: '我印象里的 JavaScript，总是一副破破烂烂的样子。�
 它又没有很多功能，必须要借助外部的 API 才能满足正常的需求。
 打个比方来说，好比一个跛脚的年轻人，看着也好，就是跑起来不太方便，需要多借助一些外物。
 为了帮助他能够跑得更好，浏览器给它装了外骨骼，让它能快速奔跑，甚至有时超乎常人。
-这里说到的外骨骼，就是前端开发者必须理解的一个概念——`事件循环`。'
+这里说到的外骨骼，就是前端开发者必须理解的一个概念——事件循环。'
 pubDate: '2024-07-02'
 tags: ['前端', 'JavaScript', '浏览器']
 ---
+import { Picture } from 'astro:assets';
+import imageEattingBuffet from '@/assets/images/吃自助餐.png';
+import imageEventLoopModules from '@/assets/images/事件循环分界图.png';
 
 我印象里的 JavaScript，总是一副破破烂烂的样子。有时候乱七八糟的项目，却刚刚好能够跑起来，不会出什么问题。
 它又没有很多功能，必须要借助外部的 API 才能满足正常的需求。
 打个比方来说，好比一个跛脚的年轻人，看着也好，就是跑起来不太方便，需要多借助一些外物。
 为了帮助他能够跑得更好，浏览器给它装了外骨骼，让它能快速奔跑，甚至有时超乎常人。
-这里说到的外骨骼，就是前端开发者必须理解的一个概念—— `事件循环`。
+这里说到的外骨骼，就是前端开发者必须理解的一个概念——**事件循环**。
 
 ## 前置知识
 
@@ -25,34 +28,54 @@ tags: ['前端', 'JavaScript', '浏览器']
 
 ## 解构事件循环
 
+### 进程和线程
+
+在正式开始我们的主题之前，我们需要回顾一些涉及的知识，避免混淆。
+
+**进程**是一个独立的运行单位，其是操作系统进行资源分配和调度的基本单位。
+
+**线程**是为了更好支撑并发执行，提高资源利用率的基本 CPU 执行单元，也是程序执行流的最小单元。
+
+线程是进程中的一个实体，是被系统独立调度和分派的基本单位，其自身不拥有系统资源，只拥有必须的允许资源，但可和其他同一进程中的线程**共享**该进程拥有的所有资源。
+
+引入线程后，进程不再作为执行单元，而是线程取代了此职能，其特性使得不同线程在属于相同进程时切换上下文的成本较低。有一点重要的是，这样以线程为独立调度的基本单元的现代操作系统中，我们说一个进程运行，**其实是进程中的某一线程在运行**。
+
 ### 单线程的 JavaScript
 
-JavaScript 是单线程的。或者说，这个方言的原规范，ECMAScript 的规范中，本身就没有 `线程` 这一概念。
+JavaScript 是**单线程的**。或者说，在单线程上运行。这个方言的原规范，ECMAScript 规范中，本身就没有**线程**这一概念。
 
-但用过 JavaScript 的开发者，都知道 JavaScript 能够执行 `异步任务`。这导致很多初学者直觉上认为，JavaScript 自身是具备 `异步` 的能力的。
+但用过 JavaScript 的开发者，都知道 JavaScript 能够执行**异步任务**。这导致很多初学者直觉上认为，JavaScript 自身就具备**异步**能力。
 
-事实恰恰与直觉相反，JavaScript 能够执行 `异步任务`，并非其自身的因素，而在于其运行时提供的数个模块和机制。对于网页来说，那便是浏览器，
-对于 Node.js 服务来说，那就是 libuv，这些外部的因素提供队列和 API，同时借助一个基于事件驱动的机制——`事件循环`，实现了 JavaScript 的 `异步` 和 `多线程` 工作。
-甚至，在 Node.js 中，我们可以使用 JavaScript 去操作多进程。
+事实恰恰与直觉相反，JavaScript 能够执行**异步任务**，并非其自身的因素，而在于其运行时提供的数个模块和机制。对于网页来说，那便是浏览器，对于 Node.js 服务来说，那就是 libuv。这些外部的因素提供队列和 API，同时借助一个基于事件驱动的机制——**事件循环**，实现了 JavaScript 的**异步**和**多线程**工作。甚至，在 Node.js 中，我们可以使用 JavaScript 去操作多进程。
 
 打个比方，JavaScript 可能是的方向盘和操作杆，到底在什么交通工具上，是面包车、超跑还是飞机，决定了最终有什么能力。
 
+想象一下，有这样一个场景。自助餐厅里，摆放着许多盛满饭菜的硕大盘子，你是餐厅的一位顾客，每次吃完饭都要去取一点食物回来。为了尽可能划算地吃上一顿，如果有牛排，你可能优先拿一些牛排。后厨的师傅一直在烹饪，做完菜时会间歇地补充盘子上的食物，但也可能原材料耗尽，导致盘子最后一直是空的。餐厅也提供生食材，你可以自取做火锅和烤肉，但像是活螃蟹之类的，你只能带给师傅帮你现做，之后放到盘子里通知你来取。
+
+这个场景里，你就是“JavaScript 引擎”，后厨的师傅就是外部环境——如浏览器，我们称这些盘子为“任务队列”或者“微任务队列”，你根据最划算方案从这些“队列”取食物回来消费的步骤称为“事件循环”，你有一定的烹饪能力，但不够强大，但你可以让师傅帮你烹饪，在浏览器环境下这就是调用 Web API，这一步骤的产出最后还会回到专门的“队列”中等你取走消费——这就是 JavaScript 的异步。
+
+<figure class='text-center'>
+  <Picture src={imageEattingBuffet} formats={['avif', 'webp']} alt='吃自助餐' class='mx-auto max-h-72 w-auto'  />
+  <figcaption>吃自助餐</figcaption>
+</figure>
+
+这个场景可能不完全正确，但应该有助于对事件循环的整体认识。整个事件循环实际是一种巧妙的生产者-消费者模式，在操作系统进程共享和常见的消息队列系统（RabbitMQ、Kafka 等）都有使用。
+
 ### 事件循环概述
 
-`事件循环` 是存在于大多数 JavaScript 运行环境中的一套机制，以协调事件、用户交互、脚本、渲染、网络等等。
-用户代理必须遵循 [Web 规范](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops) 中的 `事件循环` 描述。
+**事件循环**是存在于大多数 JavaScript 运行环境中的一套机制，以协调事件、用户交互、脚本、渲染、网络等等。它**不是**JavaScript 自身的一部分。用户代理必须遵循[Web 规范](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops) 中的**事件循环**描述。
 
-在现代浏览器中，就存在 `window 事件循环`、`worker 事件循环`、`worklet 事件循环` 数种事件循环。
-我们常去描述的事件循环，指的是其中的 `window 事件循环`。本文主要讨论的也是此事件循环。此外，在 Node.js 中，也自有一套[事件循环机制](https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#what-is-the-event-loop)。
+在现代浏览器中，就存在 **window 事件循环**、**worker 事件循环**、**worklet 事件循环**数种事件循环。我们常去描述的事件循环，指的是其中的**window 事件循环**。本文主要讨论的也是此事件循环。此外，在 Node.js 中，也自有一套[事件循环机制](https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#what-is-the-event-loop)。
 
-
-`事件循环` 之所以称之为“循环”，是因为其内部实现类似于这样的机制（忽略细节）：
+**事件循环**之所以称之为“循环”，是因为其内部实现类似于这样的机制（忽略细节）：
 ```js
 while(true) {
+  // 用算法选择一个可运行的任务，然后运行它
   const chosenTaskQueue = chooseATaskQueue();
   const task = chooseRunnableTask(chosenTaskQueue);
   run(task);
   // 做其他事
+  // 然后处理所有微任务
   let microTask = null;
   while (microTask =  dequeueMicroTask()) {
     run(microTask);
@@ -60,36 +83,49 @@ while(true) {
   // 做其他事
 }
 ```
-这个循环通常是运行在单独的线程上的，而 JavaScript 的宿主环境往往是 `多线程` 的，因此不会造成应用的阻塞。
+这个循环通常是运行在单独的线程上的，而 JavaScript 的宿主环境往往是**多线程**的，因此不会造成应用的阻塞。
 
+从整体上看，我们可以将事件循环所在的系统按职责描述为以下几个部分：
+* **JavaScript 引擎**，包含调用栈等，负责运行任务
+* **事件循环**，选取任务指派给 JavaScript 引擎
+* **任务队列和微任务队列**，其他模块用其存放任务以便与事件循环共享
+* **Web API**，提供给 JavaScript 引擎异步回调、功能扩展和间接入队任务的能力
+* **其他部分**，如计时器模块、UI 模块、网络模块等，可以在满足特定条件后让任务入队“队列”
+
+<figure class='text-center'>
+  <Picture src={imageEventLoopModules} width={755} height={503} formats={['avif', 'webp']} alt='事件循环分界图' class='mx-auto w-auto'  />
+  <figcaption>事件循环分界图</figcaption>
+</figure>
+
+TODO: 绘图·事件循环系统分区
 
 ### 任务和微任务的概念
 
-`事件循环` 中的各种机制和 `任务` 这个概念相关。在浏览器的事件循环中，[`任务（Task）`](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task) 特指一类特殊的数据结构，其声明了步骤、任务源、关联文档、脚本求值的环境设定对象集合等。
+**事件循环**中的各种机制和**任务**这个概念相关。在浏览器的事件循环中，[任务（Task）](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)特指一类特殊的数据结构，其声明了步骤、任务源、关联文档、脚本求值的环境设定对象集合等。
 
-一个相关联的概念是 [`微任务`](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，这是为区分通过 [`微任务入队`](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask) 算法和 [`任务入队`](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask) 算法生成的任务的，针对于前者的特称。一般地，谈论事件循环中的 `任务`，需要根据上下文语境判断，偶尔会代指狭义上的区别于 `微任务` 的任务。
+一个相关联的概念是[**微任务**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，这是为区分通过[微任务入队](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask)算法生成的任务和其他任务入队算法生成的任务而提出的称呼。微任务是任务的一种，微任务的全体是任务全体的真子集。
 
-我们常常把 `微任务` 以外的 `任务` 称为 `宏任务`，以明显区分二者，由此自然而然地，这些 `任务` 所在的 `任务队列` 就成为了 `宏任务队列`。但由于规范中未指定该种 `Task` 的称呼，对应的英文可能是 `MacroTask`，也仅在网络论坛中出现，同时，鉴于中英文语境下“宏”不体现任何此类任务的特性，且容易造成理解上的问题（如，理解为使用宏的任务），因此，本文仍然使用 `任务` 作为指代。
+我们常常把**微任务**以外的**任务**称为**宏任务**，以明显区分二者，由此自然而然地，这些**任务**所在的**任务队列**就成为了**宏任务队列**。但由于规范中未指定该种**Task**的称呼，对应的英文可能是 **MacroTask**，也仅在网络论坛中出现，同时，鉴于中英文语境下“宏”不体现任何此类任务的特性，且容易造成理解上的问题（如，理解为使用宏的任务），因此，本文仍然使用**任务**作为指代。
 
 ### 事件循环中的队列
 
-浏览器的 `事件循环` 中有多种 `“队列”` 参与，但它们在总体上可以划分为两种，一种是 `任务队列`，另一种是 `微任务队列`。
+浏览器的事件循环中有多种“**队列**”参与，但它们在总体上可以划分为两种，一种是**任务队列**，另一种是**微任务队列**。
 
-[`任务队列`](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue) 是存放 `任务` 的集合（Set），[`微任务队列`](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue) 是存放 `微任务` 的队列（Queue）。
-之所以称呼前者为集合，是因为其数据结构行为上表现不同于队列的定义，事件循环的处理模型从中**选择可运行的任务**，而非令队头元素出队。
-因此，微任务队列不是任务队列，也不是任务队列的子集。有时候，术语的定义有很大程度的历史原因，也会发生这种集合不是集合，叫做队列的情况。
+[**任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)是存放**任务**的集合（Set），[**微任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)是存放**微任务**的队列（Queue）。
+之所以称呼前者为集合，是因为其行为上表现不同于队列的定义，事件循环的处理模型从中**选择可运行的任务**，而**非**令队头元素出队。
+因此，微任务队列**不是**任务队列，也不是任务队列的子集。有时候，术语的定义有很大程度的历史原因，也会发生这种集合不是集合，叫做队列的情况。
 
-一个**事件循环**可以有一或多个**任务队列**，但 `微任务队列` 只能有一个。每个 `任务` 通过 `源（source）` 字段指定其来自一个特定的 `任务源（Task Source）`，借助此字段，其与特定的 `任务队列` 相关联，相对地，`任务队列` 通过此字段对其相关联的 `任务` 进行分组和序列化。
+一个事件循环可以有**一或多个**任务队列，但**微任务队列**只能有一个。每个**任务**通过源 source 字段指定其来自一个特定的**任务源（Task Source）**，借助此字段，其与特定的任务队列相关联，相对地，任务队列通过此字段对其相关联的任务进行分组和序列化。
 
-无论浏览器实现如何，规范中定义了一些 [`通用任务源（Generic Task Source）`](https://html.spec.whatwg.org/multipage/webappapis.html#generic-task-sources)：
+无论浏览器实现如何，规范中定义了一些[**通用任务源（Generic Task Source）**](https://html.spec.whatwg.org/multipage/webappapis.html#generic-task-sources)：
 * **DOM 操作任务源（the DOM Manipulation Task Source）**：此任务源用于响应 DOM 操作的特性，比如，元素插入到文档时以非阻塞方式发生某事。
-* **用户交互任务源（the User Interaction Task Source）**：此任务用于响应用户输入的特性，比如，键盘和鼠标输入。响应用户输入（像是 `click` 事件）而发送的事件（Event）必须使用用户交互任务源为参数的任务入队算法。
+* **用户交互任务源（the User Interaction Task Source）**：此任务用于响应用户输入的特性，比如，键盘和鼠标输入。响应用户输入（像是 **click** 事件）而发送的事件（Event）必须使用用户交互任务源为参数的任务入队算法。
 * **网络任务源（the Networking Task Source)`：此任务源用于响应网络活动而触发的特性。
 * **导航和遍历任务源（the Navigation and Traversal Task Source）**：此任务源用于入队导航和历史遍历中涉及的任务。
 * **渲染任务源（the Rendering Task Source）**：此任务源单独用于更新渲染。
 
-因此，一般地讲，现代浏览器中将包含这五种 `通用任务源` 对应的 `任务队列`，同时还有一个`微任务队列`。
-浏览器如何处理这些 `“队列”`，和 `任务`，将会在稍后的章节叙述。
+因此，一般地讲，现代浏览器中将包含这五种**通用任务源**对应的**任务队列**，同时还有一个**微任务队列**。
+浏览器如何处理这些“**队列**”，和**任务**，将会在接下来章节叙述。
 
 ### 事件循环处理模型
 
@@ -115,13 +151,7 @@ while(true) {
 
 
 
-
-
-
-
-
 ### 规范翻译
-
 
 事件循环必须通过以下步骤持续运行，只要当其仍然存在：
 1. 声明 <var>oldestTask</var> 和 <var>taskStartTime</var> 为 null。
