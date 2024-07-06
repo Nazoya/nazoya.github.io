@@ -24,7 +24,6 @@ export const getStaticPaths = async function () {
 
 const { post: { data, id, render } } = Astro.props;
 const { Content, headings, remarkPluginFrontmatter, } = await render();
-console.info(remarkPluginFrontmatter)
 const { repository } = await fetchPackageJSON();
 const isProd = import.meta.env.PROD;
 const contentDevURI = (resolve(CONTENT_BLOG_DIR, id)).replaceAll('\\', '\\\\');
