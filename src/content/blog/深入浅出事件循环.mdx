@@ -3,7 +3,7 @@ title: '深入浅出事件循环'
 description: '我印象里的 JavaScript，总是一副破破烂烂的样子。有时候乱七八糟的项目，却刚刚好能够跑起来，不会出什么问题。
 它又没有很多功能，必须要借助外部的 API 才能满足正常的需求。
 打个比方来说，好比一个跛脚的年轻人，看着也好，就是跑起来不太方便，需要多借助一些外物。
-为了帮助他能够跑得更好，浏览器给它装了外骨骼，让它能快速奔跑，甚至有时超乎常人。
+为了帮助他能够跑得更好，浏览器给它装了外骨骼，可以接入各种拓展，让它能快速奔跑，甚至有时超乎常人。
 这里说到的外骨骼，就是前端开发者必须理解的一个概念——事件循环。'
 pubDate: '2024-07-02'
 tags: ['前端', 'JavaScript', '浏览器']
@@ -11,11 +11,12 @@ tags: ['前端', 'JavaScript', '浏览器']
 import { Picture } from 'astro:assets';
 import imageEattingBuffet from '@/assets/images/吃自助餐.png';
 import imageEventLoopModules from '@/assets/images/事件循环分界图.png';
+import imageBenchmarkTest from '@/assets/images/DocumentFragment-测试.png';
 
 我印象里的 JavaScript，总是一副破破烂烂的样子。有时候乱七八糟的项目，却刚刚好能够跑起来，不会出什么问题。
 它又没有很多功能，必须要借助外部的 API 才能满足正常的需求。
 打个比方来说，好比一个跛脚的年轻人，看着也好，就是跑起来不太方便，需要多借助一些外物。
-为了帮助他能够跑得更好，浏览器给它装了外骨骼，让它能快速奔跑，甚至有时超乎常人。
+为了帮助他能够跑得更好，浏览器给它装了外骨骼，可以接入各种拓展，让它能快速奔跑，甚至有时超乎常人。
 这里说到的外骨骼，就是前端开发者必须理解的一个概念——**事件循环**。
 
 ## 前置知识
@@ -59,7 +60,7 @@ JavaScript 是**单线程的**。或者说，在单线程上运行。这个方�
   <figcaption>吃自助餐</figcaption>
 </figure>
 
-这个场景可能不完全正确，但应该有助于对事件循环的整体认识。整个事件循环实际是一种巧妙的生产者-消费者模式，在操作系统进程共享和常见的消息队列系统（RabbitMQ、Kafka 等）都有使用。
+这个场景可能不完全正确，但应该有助于对事件循环的整体认识。整个事件循环实际是一种巧妙的**生产者-消费者模式**，在操作系统进程共享和常见的消息队列系统（RabbitMQ、Kafka 等）都有使用。
 
 ### 事件循环概述
 
@@ -83,7 +84,7 @@ while(true) {
   // 做其他事
 }
 ```
-这个循环通常是运行在单独的线程上的，而 JavaScript 的宿主环境往往是**多线程**的，因此不会造成应用的阻塞。
+JavaScript 的宿主环境往往是**多线程**的，而一个事件循环仅会在一个线程上运行，因此不会造成应用的阻塞。规范并未限定每个事件循环必须有单独的实现线程，按具体情况，也可能出现一个线程多个事件循环。
 
 从整体上看，我们可以将事件循环所在的系统按职责描述为以下几个部分：
 * **JavaScript 引擎**，包含调用栈等，负责运行任务
@@ -97,21 +98,19 @@ while(true) {
   <figcaption>事件循环分界图</figcaption>
 </figure>
 
-TODO: 绘图·事件循环系统分区
-
 ### 任务和微任务的概念
 
-**事件循环**中的各种机制和**任务**这个概念相关。在浏览器的事件循环中，[任务（Task）](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)特指一类特殊的数据结构，其声明了步骤、任务源、关联文档、脚本求值的环境设定对象集合等。
+**事件循环**中的各种机制和**任务**这个概念相关。在浏览器的事件循环中，[任务（Task）](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)特指一类特殊的数据结构，其声明了**步骤**、任务源、关联文档、脚本求值（Script Evaluation）的环境设定对象集合等。
 
 一个相关联的概念是[**微任务**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，这是为区分通过[微任务入队](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask)算法生成的任务和其他任务入队算法生成的任务而提出的称呼。微任务是任务的一种，微任务的全体是任务全体的真子集。
 
-我们常常把**微任务**以外的**任务**称为**宏任务**，以明显区分二者，由此自然而然地，这些**任务**所在的**任务队列**就成为了**宏任务队列**。但由于规范中未指定该种**Task**的称呼，对应的英文可能是 **MacroTask**，也仅在网络论坛中出现，同时，鉴于中英文语境下“宏”不体现任何此类任务的特性，且容易造成理解上的问题（如，理解为使用宏的任务），因此，本文仍然使用**任务**作为指代。
+我们常常把**微任务**以外的任务称为**宏任务**，以明显区分二者，由此自然而然地，这些任务所在的**任务队列**就成为了**宏任务队列**。但由于规范中未指定该种任务的称呼，对应的英文**可能**是 **MacroTask**，也仅在网络论坛中出现，同时，鉴于中英文语境下“宏”不体现任何此类任务的特性，且容易造成理解上的问题（如，理解为使用宏的任务），因此，本文仍然使用**任务**作为指代。
 
 ### 事件循环中的队列
 
 浏览器的事件循环中有多种“**队列**”参与，但它们在总体上可以划分为两种，一种是**任务队列**，另一种是**微任务队列**。
 
-[**任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)是存放**任务**的集合（Set），[**微任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)是存放**微任务**的队列（Queue）。
+[**任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)是存放任务的**集合（Set）**，[**微任务队列**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)是存放微任务的**队列（Queue）**。
 之所以称呼前者为集合，是因为其行为上表现不同于队列的定义，事件循环的处理模型从中**选择可运行的任务**，而**非**令队头元素出队。
 因此，微任务队列**不是**任务队列，也不是任务队列的子集。有时候，术语的定义有很大程度的历史原因，也会发生这种集合不是集合，叫做队列的情况。
 
@@ -125,12 +124,262 @@ TODO: 绘图·事件循环系统分区
 * **渲染任务源（the Rendering Task Source）**：此任务源单独用于更新渲染。
 
 因此，一般地讲，现代浏览器中将包含这五种**通用任务源**对应的**任务队列**，同时还有一个**微任务队列**。
-浏览器如何处理这些“**队列**”，和**任务**，将会在接下来章节叙述。
+浏览器如何处理这些“**队列**”，和**任务**，将会在接下来的章节叙述。
+
+### JavaScript 执行上下文和执行上下文栈
+
+我们在之前的章节也谈到了，任务声明了其要执行的**步骤**。这些步骤是算法的步骤。我们说运行任务，实际是一定规定执行任务的步骤。在步骤中，可能存在关联的回调，这些回调就需要传递一些参数，交给 JavaScript 引擎**执行**。
+
+伴随而来的两个概念是[**执行上下文**](https://tc39.es/ecma262/#sec-execution-contexts)和[**执行上下文栈**](https://tc39.es/ecma262/#execution-context-stack)。我们可以在 [ECMA262](https://tc39.es/ecma262/#sec-execution-contexts) 中找到它们的定义—— 
+
+**执行上下文**是一种规范设备，其被 ECMAScript 实现用以追踪代码的运行时求值。在任何时点上，每个[**代理**](https://tc39.es/ecma262/#agent)最多有一个实际运行代码的执行上下文。在 ECMA262 规范中，这被称为代理的**运行执行上下文**。
+
+**执行上下文栈**是用于追踪执行上下文的堆栈。运行执行上下文总是栈顶元素。只要控制从当前运行执行上下文转移到与该执行上下文**无关**的可执行代码，就会创建一个新的执行上下文。新创建的执行上下文会推入栈中并成为运行执行上下文。
+
+一个执行上下文无论实现如何都必须包含特定状态以追踪它所关联代码的执行状态。每个执行上下文至少有以下状态组件：
+* 代码运行状态。任何当前需要用以执行、挂起或是恢复此执行上下文关联代码的状态。
+* 函数。如果执行上下文对函数对象进行求值，这就是该函数对象。如果执行上下文是脚本或模块的求值，那么值为 null。
+* [域（Realm）](https://tc39.es/ecma262/#realm)，相关代码访问 ECMAScript 资源的域记录。
+* 脚本或模块。关联代码出处的模块记录或是脚本记录。如果没有出处脚本或模块，值为 null
+
+我们可以大概地描述，当一个 JavaScript 引擎运行一段代码时，是在执行一个脚本或回调。在执行回调或脚本时，将往其执行上下文栈中压入一个执行上下文，此时，旧的运行执行上下文挂起，新的执行上下文成为运行执行上下文，在执行结束后恢复上一个执行上下文。
+
+我们常称执行上下文栈为执行栈，或代码执行栈，但在深层次理解 JavaScript 的运行时必须清楚其存放的是何种数据类型。
 
 ### 事件循环处理模型
 
 要想摸清事件循环到底如何工作的，还是需要对照 WHATWG 规范中的[处理模型](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model)一章，理解整个事件循环核心的工作机制。文末对其进行了部分翻译（附带部分对照表以查阅），方便了解其中细节，内容较多，日后将单独整理为文档格式，感兴趣的话可以[前往阅读](#规范翻译)，本文不再赘述。
 
+事件循环处理模型提取重点部分，可总结如下：
+
+事件循环模型存在时，**执行如下步骤**：
+1. 如果有包含可运行任务的任务队列，则按照自己实现的算法**选择其中一个队列**。此时不可能选择微任务队列，但可能有与微任务源关联的任务队列：
+    1. 提取该队列的第一个**可运行任务**。此时任务可能是微任务。
+    2. **运行任务**，运行完毕时，此时现象为执行上下文栈**空**。
+    3. **执行微任务检查点**：
+        1. 如果正在执行微任务检查点标志为 true，则返回。
+        2. 设置正在执行微任务检查点标志为 true。
+        3. 满足微任务队列**不为空**，则：
+            1. 从微任务队列出队一个微任务，**执行微任务**。
+        4. 设置正在执行微任务检查点标志为 false。此时微任务队列**清空**，执行上下文栈再次为**空**。
+    4. 对于 window 事件循环，如果不再有包含可运行任务队列，计算允许执行的死线，然后执行开始空闲周期算法，将 `requestIdleCallback` 传入回调关联的任务排队到相关任务队列。
+    5. 对于 worker 事件循环，运行其动画帧回调
+
+并行地，window 事件循环必须执行以下步骤：
+1. 等待一个事件循环关联的表示文档的“可通行”（特殊数据结构，Navigable）具有**渲染机会**，入队执行以下步骤的全局任务：
+    1. 排序、筛选活动文档并显示。
+    2. 刷新自动聚焦候选。
+    3. 对于每个筛选后的文档，执行以下步骤：
+        1. 运行揭示文档步骤。此步骤包含了跨文档视图切换，并于文档的关联全局对象上派发“pagereveal”事件。 
+        2. 运行调整尺寸步骤。此步骤于 Window 对象和 VisualViewport 上**派发“resize”事件**。
+        3. 运行滚动步骤。此步骤于 Document 上冒泡地，或是非 Document 上不冒泡地**派发“scroll”事件**。
+        4. 运行求值媒体查询步骤并报告改变步骤。此步骤于 MediaQueryList 上派发“change”事件
+        5. 更新动画并发送相应事件。内部又包含一个微任务检查点。此过程**改变动画帧**而不是建立新的动画帧。
+        6. 运行全屏步骤。此步骤派发“fullscreen”系列事件。
+        7. 如果 Canvas 上下文丢失，运行上下文丢失步骤。
+        8. 运行**动画帧回调**，即 `requestAnimationFrame` 排队的回调：
+            1. 拷贝保存动画帧回调的映射的键。
+            2. 对于每个键，执行：
+                1. 调用映射中该键保存的回调
+                2. 删除映射中这个键对应的值
+        9. 开始布局相关步骤：
+            1. 重新计算样式并更新布局。
+            2. 处理 Resize Observer 回调。
+        10. 处理页面聚焦逻辑，通常派发“blur”和“focus”事件，可能也于此之前派发“change”（对 input 元素）。
+        11. 执行待定的过渡操作（视图过渡）。此操作派发过渡相关事件。
+        12. 处理 Intersection Observer 回调。
+        13. 更新渲染或用户界面。
+        14. 处理顶级层移除。顶级层是浏览器特定的图层，用以显示应处于其他所有图层之上的元素，如全屏视频、dialog 等。
+
+即便进行了一些简化，但显较长，但这样更方便我们从整体上理解事件循环整个系统的模型，纠正一些过往或者以后将发生的错误认知。
+
+### 任务和微任务的顺序
+
+我们讨论整个事件循环系统中的回调时，大部分回调是通过附着于任务上的形式进行处理的。针对于这部分回调，我们在讨论任务顺序的同时，实际也是在讨论回调的顺序。
+
+参考“事件循环处理模型”一节，假设浏览器充分实现了规范，我们可以得出以下事实：
+
+浏览器代码执行时，执行上下文栈不为空。每次执行新的函数，将推入一个新的执行上下文。直到所有当前运行代码执行完毕，执行上下文栈表现为空，开始事件循环的下一步骤。此时对应执行“微任务检查点”。因此，我们也说清空执行栈时执行微任务。
+
+从这个角度看，总会有一个任务先于微任务执行，但我们直觉地从当前代码审视时，总不自觉地忽略掉当前运行任务，因此会说，微任务总是快于“宏任务”。这并不会对实际使用造成多少影响，但需要理解，精确来讲应该是，运行任务时，微任务总是先于下一个其他类型的任务执行。
+
+执行微任务检查点时，必须清空所有的微任务。这意味着，当微任务内部再次为微任务队列添加微任务时，新的微任务最终会在此次检查点中执行。这样，假设无限地在微任务中排队微任务，必定造成应用的阻塞。
+
+与之不同，其他任务在一趟循环中，仅会选择其中的一个，之后的步骤仍然会正常执行。因此可能会因长任务造成卡顿，但不会造成应用的阻塞。一个经典的例子就是分别使用 `setTimeout` 和 `queueMicrotask` 嵌套调用自身。
+
+### 两个特殊函数
+
+此外，我们常用的还有两个排队回调的函数，`requestAnimationFrame` 和 `requestIdleCallback`。
+
+`requestAnimationFrame` 回调的处理（运行动画帧回调）发生在特定的全局任务之中，这个任务囊括了更新动画、更新渲染、滚动事件分发等。`requestIdleCallback` 则是不借助任务处理回调，在当前任务处理完，微任务清空**后**，如果没有存在可运行的任务的任务队列，就会允许执行空闲回调，而且其回调可以选择规划到下一次满足对应条件时执行。
+
+乍一看，可能会认为 `requestAnimationFrame` （的回调）总是会在 `requestIdleCallback` （的回调）之前。但这只是不在事件循环中插入新任务的结果。二者实际的发生顺序情况是非常复杂的，因为后者受其他所有任务队列是否存在可运行任务的影响，由于浏览器多线程的架构，任务排队可以发生在任何时刻。假设我们调用二者（简称 rAF 和 rIC）时，浏览器不再排队除了渲染关联的全局任务（我们暂称其渲染任务）外的所有一切任务，那么：
+* 如果没有渲染任务排队，仅 rIC 回调发生，rAF 永远不会发生。常见于页面进入后台状态。
+* 如果渲染任务在 rIC 回调的进入条件判断后排队，那么 rIC 回调永远在 rAF 回调前发生。
+* 如果渲染任务在 rIC 回调的进入条件判断前排队，那么 rAF 回调永远在 rIC 回调前发生。
+
+注意，调用 `requestAnimationFrame` 并不意味着立刻会有渲染任务排队。渲染任务排队仅发生在有渲染机会时，比如说，设备显示器刷新率为 60Hz，同时页面在前台可见，那么不计入性能考虑的帧率优化等，一般会以$1/60$秒，即约 16.67 毫秒的固定间隔发生渲染机会，此时排队渲染任务。实际运行时，事件循环各环节执行时间不是固定的，尽管渲染机会尽可能周期地发生，但渲染任务在我们所谈的判断条件前还是后入队仍然是**随机**的。
+
+```js
+function test(times = 1000, happens = [], happenGap = 10) {
+  while(times--) {
+    setTimeout(() => {
+       requestIdleCallback(() => {
+        happens.push('rIC');
+      });
+      requestAnimationFrame(() => {
+        happens.push('rAF');
+      });
+    }, 50);
+  }
+}
+const output = [];
+test(100, output, 10);
+console.log(output);
+```
+
+可以修改参数多尝试几次，二者发生的顺序是随着时间不断改变的。鉴于并行因素的存在，我们想确保二者回调之间存在执行顺序是**没有意义**的，使用 Web API 理应更关注其实际的功能描述。
+
+与上一节的 `setTimeout` 和 `queueMicrotask` 类似，我们也来讨论一下回调中嵌套调用 `requestAnimationFrame` 或 `requestIdleCallback` 的情况。
+
+[运行动画帧回调](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks)中指出，运行动画帧回调需要把目标动画帧回调的映射的键全部取出，然后根据取出的键，运行键对应的回调并进行移除。这意味着，即使在回调中使用 `requestAnimationFrame` 增加新的回调，也只会在下一个渲染机会到来时运行。也就是说，嵌套调用此函数不会导致阻塞。
+
+[开始空闲期算法](https://w3c.github.io/requestidlecallback/#start-an-idle-period-algorithm)中指出，待定的空闲回调将被移动至可运行的空闲回调列表，然后在[调用空闲回调算法](https://w3c.github.io/requestidlecallback/#dfn-invoke-idle-callbacks-algorithm)中描述从该可运行空闲回调列表中取出回调并执行。这意味着，即使将所有空闲回调运行完，其中使用 `requestIdleCallback` 增加新的回调也是不会在此次步骤中执行的，可以理解为一种快照的机制。
+
+### 事件监听器的回调
+
+整理了事件循环处理模型相关的规范，一些关于事件监听的处理变得明朗起来。
+
+我们关注渲染相关全局任务的部分，发现**运行动画帧回调将其步骤一分为二**。在运行动画帧回调前，运行了调整尺寸、求值媒体查询并报告变化、滚动、更新动画和全屏等步骤。在运行动画帧之后，运行了更新布局和样式计算、处理 Resize Observer 相关部分、处理聚焦逻辑、处理页面过渡、更新 Intersection Observer 相关内容、更新渲染和 UI、处理顶级层移除元素等步骤。相应地，步骤中进行对应事件的分发，如 resize、scroll、blur 等。运行事件分发同时会**同步地**将关联的回调取出并执行。这意味着，通常情况下，为这些事件添加的事件监听器将会和动画帧回调**几乎同样的频率**进行调用，并且会**按照规范中提及的顺序**调用。
+
+当然，我们这里要提及一个反例。早些年的 Edge 实现，把运行动画帧回调放到了更新渲染之**后**，这也就导致了在使用 `requestAnimationFrame` 时总会慢半拍的情况。后面自然是修复了这个问题，不那么特立独行了。
+
+不过，我们提及了几个 Observer 和更新动画，那么 Mutation Observer 和 transition 事件的处理在哪呢？对于前者，它并不是事件循环处理模型的一部分，通过其他模块将微任务排队到微任务队列。后者，则是包含在更新动画步骤中了。
+
+而用户交互、网络事件等类型的监听器的回调——将会在满足条件后对任务/微任务进行排队。比方说，我们点击一个按钮，将会有一个任务入队到用户交互任务源相关联的任务队列中。在事件循环的较前的几个步骤中，任务最终被消费。两个常用的拥有回调功能的 API，XMLHttpRequest 和 fetch API，分别对应了任务和微任务（后者使用期约 Promise）。每趟事件循环由于任务队列选择，不总是处理网络任务，但一定会处理所有微任务，这样，当大量请求同时到来时，前者可能会穿插渲染和其他任务，后者可以尽可能在其他任务，如渲染任务前处理完所有请求的回调。
+
+至此，关于事件循环大致已经说清，接下来我们按照已经明朗的细节，拓展地谈一谈相关的话题。
+
+## 关于 DOM 修改的那些事
+
+初学 DOM 编程的时候，我总会担心，如果我在执行完这个操作——
+
+**会不会文档渲染立刻产生变化，多个操作会不会导致灾难性的影响？**
+
+**AJAX 异步调用会不会产生竞态条件（Race Condition）？**
+
+有时候，必须要反复确认测试才能安心一点……也只是一点。大学时期，身为菜鸟初学者的我和学长在做开发 Web 应用的兼职，总是遇到 JavaScript 奇奇怪怪的异步问题。于是，我们的独门秘招就是，出了问题 setTimeout，一个不行再来一个。可能有点搞笑，但确实是亲身经历。
+
+读到现在，我们已经对 JavaScript 整体有了一些深度认识，现在已经可以解答这些问题了！
+
+### 多次修改合为一次？
+
+#### 多次 DOM 修改的结果如何呢？
+首先来回答我们刚才提出的第一个问题。浏览器架构巧妙地将渲染作为某种任务的一部分融入到了基于事件驱动的系统中。因此，明确地说，除非触发强制同步布局，不然在一段代码中修改文档和元素样式，只会有渲染步骤前最终的结果会应用到屏幕上。从这个意义上来说，多次修改合为一次是非必要的。
+
+#### 布局、布局颠簸和 DocumentFragment
+那么多个 DOM 修改操作会不会导致灾难性的（性能）影响？如果有人告诉你，尽量避免多次修改 DOM，尽量整合为一个 DocumentFragment 再插入，因为直接修改 DOM 会触发页面布局……道理有点，但不多。
+
+布局英文为 layout 或是 reflow，亦可称为重排。它是页面渲染流水线的一部分，指的是重新计算页面元素，确定各个元素的位置和尺寸，然后创建布局树。这是个昂贵的操作，因为需要遍历 DOM 和计算出的样式，尤其是在样式修改影响元素较多时尤为昂贵。通常会于布局前更新样式，其后执行绘制和合成。我们称在一段代码里交替地修改样式和触发强制布局导致页面反复密集地布局为布局颠簸，或是布局抖动。
+
+修改样式直接触发布局仅限于使用[强制同步布局 API](https://gist.github.com/paulirish/5d52fb081b3570c81e3a)，例如 offsetLeft 等。如果我们不注意 DOM API 的使用，经常触发布局颠簸，直接修改样式而不是借助 DocumentFragment 再插入，那么性能将会很差。除此之外，使用 DOM API 主要的损耗在于 JavaScript 与外部系统可能的上下文切换代价，但……使用 DocumentFragment 真的可以避免吗？
+
+我们说 DocumentFragment 是轻量版的 Document，插入其内不会触发 DOM 树的更新。所以，把它插入 DOM 树也不会更新——才怪，那样看不见新增的节点了。有一种说法，使用 DocumentFragment 插入批量节点只会更新一次，分开批量插入节点会触发多次布局，甚至 MDN 的中文文档截止至目前，2024年7月，还是[这样](https://developer.mozilla.org/zh-CN/docs/Web/API/DocumentFragment#%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E)描述的。嗯，太怪了，太怪了。我把 DocumentFragment 插入 DOM 树剩下一个空的该对象，还能像粘贴文本一样啊。看看[规范文档](https://dom.spec.whatwg.org/#concept-node-children-changed-ext)怎么说。插入 DocumentFragment 最终还是对于每个节点进行了插入操作。
+
+用 DocumentFragment 插入批量节点看来是没有什么性能优化了，反而可能多出了一些步骤，部分引擎测试的性能甚至要比直接插入批量节点要慢一些，在英文版的 MDN 文档指出了[这一点](https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment#performance)。在本人的[浏览器测试](https://jsbench.me/02l63eic9j/1)中，大概要比直接插入的版本慢9%。
+
+<figure class='text-center'>
+  <Picture src={imageBenchmarkTest} width={755} height={317} formats={['avif', 'webp']} alt='DocumentFragment 性能测试' class='mx-auto w-auto'  />
+  <figcaption>DocumentFragment 性能测试</figcaption>
+</figure>
+
+使用 DocumentFragment，最主要的原因应当还是出于代码可读性和操作方便性的考虑，使用它进行优化能只是以讹传讹的说法罢了。顺带提一句，隐藏元素并在修改后再显示可能也不是个很好的做法，可能有点一叶障目，除非你是分批次多趟事件循环才完成修改（那也要考虑修改的是什么样式、修改多少）。
+
+那么，果真多次 DOM 修改合为一次没有什么用了吗？嗯，我只能说，如果不涉及强制布局同步，其实差异不大，你可以自己进行一些测试。这个问题再深入探讨起来就像是对比两碗一百克的米饭一样，“不合并”总会少一两粒米。更重要的是逻辑看起来比较顺畅清爽，而且让非常重视合并 DOM 修改优化性能的人也能得到慰藉。但请记住，不要出于性能优化做这件事，也不要认为真的“性能优化”了。况且，过早的优化往往会拖慢你的效率。
+
+### 虚拟 DOM 真的优化了 DOM 修改了吗？
+
+讲到这里，我联想到另一个类似的场景。我在一些文章中见到一个常见的说法，虚拟 DOM 总是要比 DOM 快。或者是，在到达某个阈值后，虚拟 DOM 总是要比 DOM 快。这是不正确的。
+
+一说在 React 之前，虚拟 DOM 尚未达到可用程度，Meta 公司团队改进了虚拟 DOM 算法使得其时间复杂度降低至可用，并用其作为声明式编程的支撑。这之后，总是会有人宣传虚拟 DOM 的“快”这一特点。
+
+我们先限定以下说法，因为虚拟 DOM 总是要比 DOM 快实际比较的是“使用虚拟 DOM 调用 API 修改 DOM 总是要比直接调用 API 修改 DOM 要快”。至此，你应该发现了什么。
+
+在常用的框架中的虚拟 DOM 算法，现代的 Vue3 选择的策略是每个节点对比后直接 patch 节点，而 React 19 则是借助 Fiber 架构简历副作用列表并在任务调度中批量更新。无论具体实现如何，归根到底，虚拟 DOM 还是需要进行真实的 DOM 操作，此外，它总是会在 DOM 上添加一层额外层，同时需要管理以对比新旧节点的区别，以合并和最小化修改。
+
+我们假设 DOM 操作总是最优的且我们知道这种方法。在这个前提下，多一层额外层和管理需求，意味着额外的空间和时间消耗（更何况，虚拟 DOM 自身也需要传输 JavaScript 代码）。这样，总会是 DOM 直接操作更优。
+
+至此，我们得出一个结论，最终得出同样 DOM 操作的情况下，虚拟 DOM 要**慢**。
+
+但是，我们需要陈述一个事实，并不是所有人都知道最优的 DOM 操作方法，况且还可能无意间触发强制布局同步，实际不总是直接操作 DOM 更快。提供虚拟 DOM 类的框架主要优势在于声明式编写数据驱动的应用，对开发者友好，同时虚拟 DOM 替换 API 操作层可以用于构建其他环境的应用（但真实情况复杂的多），如 React Native，虽然这类应用性能总是较差的，胜在开发效率高（没踩坑或要求优化之前）。当今前端领域，也已经出现拥抱 No Virtual DOM 的声明式解决方案，如 Svelte，或是主要纯服务端构建 HTML 页面的声明式解决方案，如 Astro，以规避虚拟 DOM 性能上的问题。
+
+总结而言，虚拟 DOM 确实优化了 DOM 修改，但通常不是性能方面的，而是关于开发者体验和效率方面的。
+
+### 围绕 DOM 修改使用 `requestAnimationFrame`
+
+了解了事件循环，`requestAnimationFrame` 的功能也在专注动画更新之外出现了新的奇淫技巧。
+
+#### 延迟 DOM 修改
+
+如果你的操作分布在许多不同的函数中，且它们其中的一些将修改共用的值，然后触发强制同步布局，但你需要的是当前帧状态的值，而不是更新后的，也许你不能保证各模块按顺序执行，或是缓存到全局要保持同步非常麻烦，就可以使用 `requestAnimationFrame` 延迟修改，使得。举个非真实世界的例子：
+
+```js
+const el = document.createElement('div');
+el.style.cssText = `position: absolute; top: 0; left: 0; width: 20px; height: 20px; background: #000`;
+// 在控制模块
+function moveTop() {
+  const top = el.getClientBoundingRect().top;
+  requestAnimationFrame(() => {
+    el.style.top = `${top + 10}px`;
+  });
+}
+// 在
+function recordTop() {
+    const top = el.getClientBoundingRect().top;
+    console.log(top);
+}
+```
+#### 获取布局更新后的新样式
+
+如果你前端经验丰富，一定遇到过需要触发布局更新后获取新布局的情况。如果你不是很情愿触发强制布局更新，导致每次都多那么一次布局和绘制的话，这里有一个方法，称之为二重动画帧回调：
+
+```js
+function runAfterDOMUpdate(fn) {
+  function nextFrameWork() {
+    requestAnimationFrame(fn);
+  }
+
+  requestAnimationFrame(nextFrameWork);
+}
+```
+
+这个方法巧妙地运用了动画帧回调在浏览器事件循环中的位置。
+
+### 异步调用会不会产生竞态条件？
+
+结论而言，不会。你可以放心地修改 DOM，大胆去在异步中修改。
+
+浏览器架构遵循了一个黄金法则，针对于 UI 修改的线程只能有一个，从而避免了大多异步带来的非预期问题。也就是说，无论异步进行了什么操作，它关联的回调永远是回到主线程中运行的——主线程做完手头的工作，才会轮到这些回调，不会出现竞态条件。同时，它对于 DOM/CSSOM 的修改不会同步地反映到屏幕上，除非触发强制同步布局，否则就是在下一个渲染机会到来时被同步到屏幕。最终我们需要考虑的是，如果多个异步同时进行，最终回调都修改 DOM，那么需要确保回调执行顺序吗？如何去确保？这就是另一个话题了。
+
+## 再说防抖
+
+防抖这个技术，旨在限制某算法以特定间隔发生。常见的一个用例就是针对于页面滚动加载的事件监听进行节流。
+
+```js
+import { throttle } from 'lodash';
+const callback = throttle(() => {}, 50);
+window.addEventListener('scroll', callback);
+```
+
+我们常用的防抖技术主要基于特定的标志遍历和计时器的应用，也有人提出一种基于 requestAnimationFrame 的防抖方案，此处也一并讨论。
+
+防抖技术的用途意味着，如果防抖的间隔低于或等于事件的发生的间隔，那防抖将没有意义。
+
+我们讨论过事件循环的处理模型，在其中看到了一些事件分发步骤作为渲染任务的一部分存在，比如“scroll”，而 requestAnimationFrame 在其后。
+
+这意味着，其一，“scroll”事件将在具有渲染机会时触发，那么，理想状态下触发后会以屏幕刷新率的固定间隔在一定时间内连续发生。对于存世量仍不少的 60Hz 的显示器，这个间隔理想状态下是约 16.7ms，意味着，如果小于这个间隔，防抖将是无意义的。因此，最好在防抖前思考一下是大于了显示器刷新的间隔。
+
+其二，“scroll”事件回调将与 requestAnimationFrame 以大致相同频率触发。因此，使用 requestAnimationFrame 进行“scroll”事件的节流是个非常有意思的选择，非常幽默。这个例子我也在 MDN 的[文档](https://developer.mozilla.org/en-US/docs/Web/API/Document/scroll_event#scroll_event_throttling)中见到过，作为参考举例，虽然较委婉地声明了不该这样写，但谁知道呢，可能有人会不看说明呢？
 
 
 
@@ -148,17 +397,14 @@ TODO: 绘图·事件循环系统分区
 
 
 
-
-
-
-### 规范翻译
+## 规范翻译
 
 事件循环必须通过以下步骤持续运行，只要当其仍然存在：
 1. 声明 <var>oldestTask</var> 和 <var>taskStartTime</var> 为 null。
 2. 如果**事件循环**有至少有一个**可运行任务**的**任务队列**，那么：
     1. 声明 <var>taskQueue</var> 为所述任务队列之一，以[实现定义](https://infra.spec.whatwg.org/#implementation-defined)的风格进行选择。
     <aside>
-    注意：记住，[微任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)不是[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue),因此它不会在此步骤中被选中。然而，与[微任务任务源](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-task-source)相关联的[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)。在此场景下，在下一步骤中被选中的[任务](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)原本是[微任务](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，但作为[执行事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop)的一部分被移动了。
+    注意：记住，[微任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-queue)不是[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue),因此它不会在此步骤中被选中。然而，与[微任务任务源](https://html.spec.whatwg.org/multipage/webappapis.html#microtask-task-source)相关联的[任务队列](https://html.spec.whatwg.org/multipage/webappapis.html#task-queue)。在此场景下，在后续骤中被选中的[任务](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)原本是[微任务](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，但作为[执行事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop)的一部分被移动了。
     </aside>
     2. 赋值 <var>taskStartTime</var> 以不安全的共享的当前时间。
     3. 赋值 <var>oldestTask</var> 以 <var>taskQueue</var> 中第一个可运行任务，同时从 <var>taskQueue</var> 中移除。
@@ -194,6 +440,7 @@ TODO: 绘图·事件循环系统分区
                刷新率可以是硬件上的或是特定于实现的。对于 60Hz 的刷新率，<var>nextRenderDeadline</var> 可能是[上次渲染机会时间](https://html.spec.whatwg.org/multipage/webappapis.html#last-render-opportunity-time)后约 16.67ms.
             2. 如果 <var>nextRenderDeadline</var> 小于 <var>deadline</var>，则返回 <var>nextRenderDeadline</var>。
         5. 返回 <var>deadline</var>。
+    3. 对于此[事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#event-loop)[同循环窗口](https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows) 的每个窗口 <var>win</var>，为 <var>win</var> 执行[开始空闲期算法](https://w3c.github.io/requestidlecallback/#start-an-idle-period-algorithm)，传递以下步骤（作为参数）：调用 <var>computeDeadline</var>，对于其结果，给定 <var>win</var> [相关设定对象](https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object)的[跨源隔离能力](https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-cross-origin-isolated-capability)以[粗化](https://w3c.github.io/hr-time/#dfn-coarsen-time)，这之后返回该值。[REQUESTIDLECALLBACK](https://html.spec.whatwg.org/multipage/references.html#refsREQUESTIDLECALLBACK)
 6. 如果此循环是[worker 事件循环](https://html.spec.whatwg.org/multipage/webappapis.html#worker-event-loop-2)，则：
     1. 如果此事件循环[代理](https://tc39.es/ecma262/#sec-agents)的单一[域（Realm）](https://tc39.es/ecma262/#sec-code-realms)的[全局对象](https://html.spec.whatwg.org/multipage/webappapis.html#concept-realm-global)是一个[被支持的](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#concept-animationframeprovider-supported) [DedicatedWorkerGlobalScope](https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope)，且用户代理坚信代理自身将从执行其此次渲染更新中受益，则：
         1. 声明 <var>now</var> 为给定 [DedicatedWorkerGlobalScope](https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope) 的[当前高精度时间](https://w3c.github.io/hr-time/#dfn-current-high-resolution-time)。[高精度时间]
@@ -228,7 +475,7 @@ TODO: 绘图·事件循环系统分区
         此步骤标明了过滤不可渲染的文档阻止用户代理在无法向用户呈现新内容时更新渲染。
         此步骤标明了非必要渲染阻止用户代理在没有新内容需要绘制时阻止更新渲染。
         此步骤使用户代理能够因其他理由阻止下列步骤运行，例如，为确保某些[任务](https://html.spec.whatwg.org/multipage/webappapis.html#concept-task)在彼此之后能够立刻执行，仅交叉[微任务检查点](https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint)（且不交叉其他，如[动画帧回调](https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks)）。具体来说，用户代理可能希望合并计时器回调到一起，而不立刻渲染更新。
-        6. 对于 <var>docs</var> 中的每个 <var>doc</var>，[显示](https://html.spec.whatwg.org/multipage/browsing-the-web.html#reveal) <var>doc</var>。
+        6. 对于 <var>docs</var> 中的每个 <var>doc</var>，[揭示](https://html.spec.whatwg.org/multipage/browsing-the-web.html#reveal) <var>doc</var>。
         7. 对于 <var>docs</var> 中的每个 <var>doc</var>，如果其[节点“可通行”](https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable)是一个[顶级的“可遍历”](https://html.spec.whatwg.org/multipage/document-sequences.html#top-level-traversable)（特殊的数据结构，原文中形作名），为其[刷新自动聚焦候选](https://html.spec.whatwg.org/multipage/interaction.html#flush-autofocus-candidates)。
         8. 对于 <var>docs</var> 中的每个 <var>doc</var>，运行[调整尺寸步骤](https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
         9. 对于 <var>docs</var> 中的每个 <var>doc</var>，运行[滚动步骤](https://drafts.csswg.org/cssom-view/#document-run-the-scroll-steps)。[CSSOMVIEW](https://html.spec.whatwg.org/multipage/references.html#refsCSSOMVIEW)
@@ -313,7 +560,7 @@ TODO: 绘图·事件循环系统分区
 4. 清空 [JavaScript 执行上下文栈]。
 5. 执行微任务检查点。
 <aside>
-注意：如果任务时微任务，则由于[正在执行微任务检查点]为 true，因此此步骤将处于无操作状态。
+注意：如果 <var>task</var> 是此步骤中的微任务，由于[正在执行微任务检查点]为 true，此步骤会是一个 no-op（指此步无操作）。
 </aside>
 6. 并行：
     1. 等待，直到条件 <var>goal</var> 满足。
@@ -704,7 +951,7 @@ TODO: 绘图·事件循环系统分区
     <td></td>
   </tr>
   <tr>
-    <td>abount rejected promise</td>
+    <td>about rejected promise</td>
     <td>将被拒绝的期约</td>
     <td>特殊名词，原文省略了介词以简写</td>
   </tr>
