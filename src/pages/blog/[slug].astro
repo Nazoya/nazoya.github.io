@@ -28,7 +28,7 @@ const { repository } = await fetchPackageJSON();
 const isProd = import.meta.env.PROD;
 const contentDevURI = (resolve(CONTENT_BLOG_DIR, id)).replaceAll('\\', '\\\\');
 const editPage = isProd
-  ? `${repository as string}/src/contents/blog/${id}`
+  ? `${repository as string}/tree/master/src/contents/blog/${id}`
   : `/__open-in-editor?file=${contentDevURI}`;
 const { lastModified, msForReading, words } = remarkPluginFrontmatter;
 const updateDate = lastModified ? new Date(lastModified) : data.updatedDate;
