@@ -23,7 +23,7 @@ const { title, description, items, lang = 'zh-cn' } = Astro.props;
     <slot name='head' />
   </head>
 
-  <body class='bg-white text-black dark:bg-black dark:text-white'>
+  <body class='bg-white text-black'>
     <Header class='sticky top-0 w-full z-10 h-[var(--header-height)]' />
     <div class='flex mx-auto max-w-[1320px] content px-4 md:px-8'>
       <BlogSideMenu
