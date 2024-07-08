@@ -1,21 +1,25 @@
 ---
+import IconMail from '@/components/icon/IconMail.astro';
+import IconGithub from '@/components/icon/IconGithub.astro';
 const today = new Date();
 const year = today.getFullYear();
 const period = year !== 2024 ? `2024-${year}` : year;
 ---
 
-<footer class='text-sm'>
-	&copy; {period} / 谜言 / All rights reserved.
-	<div class="social-links">
-	</div>
+<footer
+  class='flex flex-col gap-y-2 justify-center items-center text-sm text-center px-4 pt-8 py-24'
+>
+  <div>
+    &copy; {period} / 谜言 / All rights reserved.
+  </div>
+  <div class='flex justify-center items-center gap-x-2'>
+    <a class='flex items-center gap-x-2' href='mailto:miyan-buzz@outlook.com'>
+      <IconMail class='inline-block size-6' /> miyan-buzz@outlook.com
+    </a>
+  </div>
+  <div class='flex justify-center items-center gap-x-2'>
+    <a class='flex items-center gap-x-2' href='https://github.com/Nazoya'>
+      <IconGithub class='inline-block size-5 align-middle' /> Nazoya
+    </a>
+  </div>
 </footer>
-<style>
-
-	footer {
-		padding: 2em 1em 6em 1em;
-		background: linear-gradient(var(--gray-gradient)) no-repeat;
-		color: rgb(var(--gray));
-		text-align: center;
-	}
-
-</style>
