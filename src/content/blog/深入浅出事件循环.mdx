@@ -9,6 +9,7 @@ pubDate: '2024-07-02'
 tags: ['前端', 'JavaScript', '浏览器']
 ---
 import { Picture } from 'astro:assets';
+import imageProcessAndThread from '@/assets/images/进程与线程.png';
 import imageEattingBuffet from '@/assets/images/吃自助餐.png';
 import imageEventLoopModules from '@/assets/images/事件循环分界图.png';
 import imageBenchmarkTest from '@/assets/images/DocumentFragment-测试.png';
@@ -41,6 +42,12 @@ import imageBenchmarkTest from '@/assets/images/DocumentFragment-测试.png';
 
 引入线程后，进程不再作为执行单元，而是线程取代了此职能，其特性使得不同线程在属于相同进程时切换上下文的成本较低。有一点重要的是，这样以线程为独立调度的基本单元的现代操作系统中，我们说一个进程运行，**其实是进程中的某一线程在运行**。
 
+<figure class='text-center'>
+  <Picture src={imageProcessAndThread} formats={['avif', 'webp']} alt='进程与线程' class='mx-auto max-h-72 w-auto'  />
+  <figcaption>进程与线程</figcaption>
+</figure>
+
+
 ### 单线程的 JavaScript
 
 JavaScript 是**单线程的**。或者说，在单线程上运行。这个方言的原规范，ECMAScript 规范中，本身就没有**线程**这一概念。
@@ -64,7 +71,7 @@ JavaScript 是**单线程的**。或者说，在单线程上运行。这个方�
 
 ### 事件循环概述
 
-**事件循环**是存在于大多数 JavaScript 运行环境中的一套机制，以协调事件、用户交互、脚本、渲染、网络等等。它**不是**JavaScript 自身的一部分。用户代理必须遵循[Web 规范](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops) 中的**事件循环**描述。
+**事件循环**是存在于大多数 JavaScript 运行环境中的一套机制，在浏览器中，它用以协调事件、用户交互、脚本、渲染、网络等等。它**不是**JavaScript 自身的一部分，也不是 JavaScript 相关的专用名词。用户代理必须遵循[Web 规范](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops) 中的**事件循环**描述。
 
 在现代浏览器中，就存在 **window 事件循环**、**worker 事件循环**、**worklet 事件循环**数种事件循环。我们常去描述的事件循环，指的是其中的**window 事件循环**。本文主要讨论的也是此事件循环。此外，在 Node.js 中，也自有一套[事件循环机制](https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#what-is-the-event-loop)。
 
@@ -105,6 +112,17 @@ JavaScript 的宿主环境往往是**多线程**的，而一个事件循环仅�
 一个相关联的概念是[**微任务**](https://html.spec.whatwg.org/multipage/webappapis.html#microtask)，这是为区分通过[微任务入队](https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask)算法生成的任务和其他任务入队算法生成的任务而提出的称呼。微任务是任务的一种，微任务的全体是任务全体的真子集。
 
 我们常常把**微任务**以外的任务称为**宏任务**，以明显区分二者，由此自然而然地，这些任务所在的**任务队列**就成为了**宏任务队列**。但由于规范中未指定该种任务的称呼，对应的英文**可能**是 **MacroTask**，也仅在网络论坛中出现，同时，鉴于中英文语境下“宏”不体现任何此类任务的特性，且容易造成理解上的问题（如，理解为使用宏的任务），因此，本文仍然使用**任务**作为指代。
+
+为创建一个非微任务的任务，你可以使用 API：
+* XMLHttpRequest
+* setTimeout
+* setInterval
+
+为创建一个微任务，你可以使用 API：
+* queueMicrotask
+* fetch
+* 期约 Promise 中的 then，如：Promise.resolve().then
+* async/await
 
 ### 事件循环中的队列
 
@@ -193,6 +211,25 @@ JavaScript 的宿主环境往往是**多线程**的，而一个事件循环仅�
 
 即便进行了一些简化，但显较长，但这样更方便我们从整体上理解事件循环整个系统的模型，纠正一些过往或者以后将发生的错误认知。
 
+### 借助事件循环实现异步
+
+利用 Web API，你可以将一个回调暂时移出当前的同步执行块，交予外部框架，以在事件循环未来的某个时点回到 JavaScript 引擎执行。常见的 API 有：
+
+* setTimeout 和 setInterval 规划一个未来超时后执行的任务关联的回调。
+* queueMicrotask 和 Promise.prototype.then 规划一个当前任务执行完立刻执行的微任务关联的回调。
+* requestAnimationFrame 规划一个未来渲染任务中更新渲染前执行的回调。
+* requestIdleCallback 规划一个未来所有队列无可运行任务时执行的回调。
+* XMLHttpRequest 和 fetch 分别规划网络请求状态更新后的任务和微任务回调。
+* MutationObserver 规划一个节点修改后排队微任务的回调。
+* ResizeObserver 和 IntersectionObserver 规划调整尺寸和元素相交时排队的任务回调。
+* 事件处理程序，如 addEventListener，可以规划未来特定条件被触发的回调
+* 其他类型，WindowProxy、MessageChannel 和 Worker 通信等
+
+一旦 JavaScript 引擎的相对外部系统发现满足条件，回调就作为事件循环的一部分进入，最终塞入引擎中执行，此时 JavaScript 引擎不会执行其他任何代码。
+
+宏观上看，JavaScript 系统确实是异步的，JavaScript 现在具备了异步的能力。微观上看，JavaScript 引擎永远是同步执行的。
+
+
 ### 任务和微任务的顺序
 
 我们讨论整个事件循环系统中的回调时，大部分回调是通过附着于任务上的形式进行处理的。针对于这部分回调，我们在讨论任务顺序的同时，实际也是在讨论回调的顺序。
@@ -206,6 +243,8 @@ JavaScript 的宿主环境往往是**多线程**的，而一个事件循环仅�
 执行微任务检查点时，必须清空所有的微任务。这意味着，当微任务内部再次为微任务队列添加微任务时，新的微任务最终会在此次检查点中执行。这样，假设无限地在微任务中排队微任务，必定造成应用的阻塞。
 
 与之不同，其他任务在一趟循环中，仅会选择其中的一个，之后的步骤仍然会正常执行。因此可能会因长任务造成卡顿，但不会造成应用的阻塞。一个经典的例子就是分别使用 `setTimeout` 和 `queueMicrotask` 嵌套调用自身。
+
+TODO: 夜不能寐的任务、微任务顺序问题
 
 ### 两个特殊函数
 
@@ -260,7 +299,9 @@ console.log(output);
 
 至此，关于事件循环大致已经说清，接下来我们按照已经明朗的细节，拓展地谈一谈相关的话题。
 
-## 关于 DOM 修改的那些事
+## 审视常见的错误认知
+
+### 要不要多次修改合为一次？
 
 初学 DOM 编程的时候，我总会担心，如果我在执行完这个操作——
 
@@ -271,8 +312,6 @@ console.log(output);
 有时候，必须要反复确认测试才能安心一点……也只是一点。大学时期，身为菜鸟初学者的我和学长在做开发 Web 应用的兼职，总是遇到 JavaScript 奇奇怪怪的异步问题。于是，我们的独门秘招就是，出了问题 setTimeout，一个不行再来一个。可能有点搞笑，但确实是亲身经历。
 
 读到现在，我们已经对 JavaScript 整体有了一些深度认识，现在已经可以解答这些问题了！
-
-### 多次修改合为一次？
 
 #### 多次 DOM 修改的结果如何呢？
 首先来回答我们刚才提出的第一个问题。浏览器架构巧妙地将渲染作为某种任务的一部分融入到了基于事件驱动的系统中。因此，明确地说，除非触发强制同步布局，不然在一段代码中修改文档和元素样式，只会有渲染步骤前最终的结果会应用到屏幕上。从这个意义上来说，多次修改合为一次是非必要的。
@@ -361,7 +400,7 @@ function runAfterDOMUpdate(fn) {
 
 浏览器架构遵循了一个黄金法则，针对于 UI 修改的线程只能有一个，从而避免了大多异步带来的非预期问题。也就是说，无论异步进行了什么操作，它关联的回调永远是回到主线程中运行的——主线程做完手头的工作，才会轮到这些回调，不会出现竞态条件。同时，它对于 DOM/CSSOM 的修改不会同步地反映到屏幕上，除非触发强制同步布局，否则就是在下一个渲染机会到来时被同步到屏幕。最终我们需要考虑的是，如果多个异步同时进行，最终回调都修改 DOM，那么需要确保回调执行顺序吗？如何去确保？这就是另一个话题了。
 
-## 再说防抖
+### 再说防抖
 
 防抖这个技术，旨在限制某算法以特定间隔发生。常见的一个用例就是针对于页面滚动加载的事件监听进行节流。
 
@@ -381,20 +420,137 @@ window.addEventListener('scroll', callback);
 
 其二，“scroll”事件回调将与 requestAnimationFrame 以大致相同频率触发。因此，使用 requestAnimationFrame 进行“scroll”事件的节流是个非常有意思的选择，非常幽默。这个例子我也在 MDN 的[文档](https://developer.mozilla.org/en-US/docs/Web/API/Document/scroll_event#scroll_event_throttling)中见到过，作为参考举例，虽然较委婉地声明了不该这样写，但谁知道呢，可能有人会不看说明呢？
 
+### 在测试中的顺序问题
 
+我们在[事件监听器的回调](#事件监听器的回调)一节中已经指出，用户交互会导致任务排队到与用户交互源相关的任务队列。似乎我们可以认知为触发交互事件最终会触发任务排队。但请注意，交互事件的触发来源不只是用户的交互，通过 JavaScript 调用也可以，而这也是许多集成测试中触发事件的常用手段，举个经典的例子：
+```js
+cons a = document.querySelector('a');
+a.click();
+```
+Jake Archibald 的[演讲](https://www.youtube.com/watch?v=cCOL7MC4Pl0)中明确地提出了此触发导致的问题，在半小时处可以看到（我挺喜欢这老哥的，在很多谷歌的对谈节目里也能看到他，技术深，人也很幽默）。这里进行简单地描述。
 
+假设我们有一个按钮 <var>button</var>，这里为它们附加两个事件监听处理器。
 
+```js
+const button = document.createElement('button');
+button.innerText = 'Click Me!';
+document.body.append(button);
 
+button.addEventListener('click', () => {
+    Promise.resolve().then(() => console.log('Microtask 1'));
+    console.log('Listener 1');
+});
 
+button.addEventListener('click', () => {
+   	Promise.resolve().then(() => console.log('Microtask 2'));
+    console.log('Listener 2');
+});
+```
 
+你可以思考一下，用户点击它的结果如何，答案进行了折叠。
+<details>
+  <summary>答案：</summary>
+```text
+Listener 1 Microtask 1 Listener 2 Microtask2
+```
+</details>
 
+预料之中，对吧？现在我们来看看稍微修改后的代码：
+```js
+const button = document.createElement('button');
+button.innerText = 'Click Me!';
+document.body.append(button);
 
+button.addEventListener('click', () => {
+    Promise.resolve().then(() => console.log('Microtask 1'));
+    console.log('Listener 1');
+});
 
+button.addEventListener('click', () => {
+   	Promise.resolve().then(() => console.log('Microtask 2'));
+    console.log('Listener 2');
+});
 
+button.click();
+```
 
+现在来思考，此时的输出顺序。
 
+<details>
+  <summary>答案：</summary>
+```text
+Listener1 Listener2 Microtask1 Microtask2
+```
+</details>
 
+也许你会惊讶——“诶，微任务不是应该先执行吗？”你没有错，但这仅是在前一个任务已经运行完时的流程。
 
+我们通过用户点击触发事件回调时，浏览器会为我们生成两个任务，而通过 `click()` 触发时，仍处于任务运行之中，不会生成新的任务，它将同步地提取回调函数并执行。 
+
+这是一个非常常见的现象，好在大多数场景下顺序并没有那么重要。但如果你需要对代码进行测试，而对这个问题感到迷惑，那么现在你应该豁然开朗了。
+
+## 其他应用的事件循环模式
+
+我们在开头概述的部分也提到了，事件循环并非 JavaScript 的专属。它是一种通用的设计模式，同时也存在于许多常见的程序中。
+
+你可能会好奇，到底 Web 服务器是如何运行的，比如 Express 应用。
+
+我们先以 Expess 为例，查看其[源码](https://github.com/expressjs/express/blob/4cf7eed927d3ccd3f1d0c9a14d562ec0a1635e86/lib/application.js#L633)，可以发现其 `listen` 内部调用了 nodejs 中 http 模块的方法。
+
+```js
+var http = require('http');
+/// ... 省略
+app.listen = function listen() {
+  var server = http.createServer(this);
+  return server.listen.apply(server, arguments);
+};
+```
+顺着路径查找，我们可以大致在 C++ 部分的源码中找到[相关的内容](https://github.com/nodejs/node/blob/41cb292778de65133d93a393853dc5caef2b8ee1/src/tcp_wrap.cc#L177)。同样，也是借助了宿主环境的事件循环能力。
+
+```C++
+TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
+    : ConnectionWrap(env, object, provider) {
+  int r = uv_tcp_init(env->event_loop(), &handle_);
+  CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
+                   // Suggestion: uv_tcp_init() returns void.
+}
+```
+
+类似地，tornado 内部也是使用了[事件循环](https://www.tornadoweb.org/en/stable/ioloop.html)。
+
+```python
+def connection_ready(sock, fd, events):
+    while True:
+        try:
+            connection, address = sock.accept()
+        except BlockingIOError:
+            return
+        connection.setblocking(0)
+        io_loop = tornado.ioloop.IOLoop.current()
+        io_loop.spawn_callback(handle_connection, connection, address)
+```
+
+可以猜测，nginx 内部也使用了类似的技术（确实也是用了事件循环）。
+
+不仅仅是 Web 服务器使用到了此技术。同样的，实现一个 REPL 也会用到事件循环。甚至我们日常使用的 Windows 系统应用程序也有事件循环，这是大多数程序的核心，其称为“消息循环”。此外，游戏循环也是利用此原理，在每趟循环里检查用户输入并作出响应。
+
+事件循环模型属于异步非阻塞的 I/O 模型，通过这种模型，我们可以出色地解决 I/O 密集型任务，避免线程资源的浪费。一个天生 I/O 密集型优化的 JavaScript 运行时，nodejs 就是以此特色闻名的。此外，我也曾用过 Dart，它也是开箱即支持事件循环的语言，作为开发语言出色地支撑了 Flutter。
+
+常见事件循环的应用场景如下：
+* 异步 I/O
+* 进程或线程间通信
+* Web 服务器
+
+## 总结
+
+本文中，依照规范原文，对事件循环进行了解构和拓展，我们提及了：
+* 浏览器事件循环的组成结构
+* 浏览器事件循环的处理模型
+* 任务和微任务在事件循环中的处理顺序
+* 了解事件循环可以纠正的错误认知
+* 其他应用中的事件循环
+
+现在，你应该对事件循环应该有了整体上的认识。或许，现在正是时候，使用自己擅长的语言，尝试编写一个简单的事件循环了！
 
 
 ## 规范翻译
@@ -958,18 +1114,8 @@ window.addEventListener('scroll', callback);
   </tbody>
 </table>
 
-## 事件循环？何时来的？
-
-
-## 揭露真实的事件循环
-
-
-## 其他环境中的事件循环
-
-
-## 事件驱动和状态驱动
-
-## 碎碎念
-
 ## 参考文献
 [1]: WHATWG. HTML Living Standard[DB/OL]. [参考链接](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). 2024-07-02
+[2]: WHATWG. HTML Living Standard[DB/OL]. [参考链接](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). 2024-07-02
+[3]: WHATWG. HTML Living Standard[DB/OL]. [参考链接](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). 2024-07-02
+[4]: WHATWG. HTML Living Standard[DB/OL]. [参考链接](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). 2024-07-02
