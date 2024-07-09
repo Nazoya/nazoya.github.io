@@ -190,7 +190,7 @@ import { throttle } from 'lodash';
         let nextElement = row?.anchor;
         if (!nextElement && categoryEl) {
           nextElement = categoryEl.querySelector(
-            `li[data-anchor-id=${id}]`
+            `li[data-anchor-id='${id}']`
           ) as HTMLElement;
 
           row && (row.anchor = nextElement);
