@@ -1,0 +1,74 @@
+---
+import { Code } from 'astro:components';
+import {
+  Sandpack,
+  // SandpackProvider,
+  // SandpackLayout,
+  // SandpackCodeEditor,
+  // SandpackPreview,
+} from "@codesandbox/sandpack-react";interface Props extends Record<string, any> {
+  styleString: string;
+  files?: Record<string, string>;
+};
+
+const { styleString, files, ...props } = Astro.props;
+
+const templateHTML = String.raw`<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel='stylesheet' href='/style.css' />
+    <style>
+    body {
+      margin: 0;
+    }
+    .parent {
+      width: 100vw;
+      height: 100vh;
+    }
+    .child, .child-aux {
+      width: 40vw;
+      height: 40vh;
+      color: #fff;
+      font-size: 32px;
+      background-color: #000;
+    }
+    .child-aux {
+      position: absolute;
+      z-index: -1;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: green;
+      opacity: 1;
+    }
+    </style>
+    <title>Sandbox</title>
+  </head>
+  <body>
+    <div class='parent'>
+      <div class='child-aux'></div>
+      <div class='child'>CHILD</div>
+    </div>
+  </body>
+</html>`;
+
+---
+
+<>
+  <Code code={styleString} lang="css" />
+  <details open>
+    <summary>在沙盒中尝试效果</summary>
+    <Sandpack
+      client:load
+      files={{
+        '/index.html': templateHTML,
+        '/style.css': { active: true, code: styleString },
+        ...files,
+      }} 
+      {...props}
+      template="static"
+    />
+  </details>
+</>

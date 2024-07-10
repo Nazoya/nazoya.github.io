@@ -1,90 +1,188 @@
 ---
 title: '数十种利用 CSS 不同特性垂直居中的方法'
-description: '了解各种稀奇古怪的垂直居中方法虽然没法当饭吃，但有助于你理解更透彻地理解 CSS。本文将这些方法一一列举，然后阐明它们内在的原理。'
+description: '了解各种稀奇古怪的垂直居中方法虽然没法当饭吃，但有助于你理解更透彻地理解 CSS。本文将这些方法一一列举，然后阐明它们内在的原理。注意，本文使用 React 孤岛，将加载较大的 JavaScript 脚本。'
 pubDate: '2024-06-27'
 tags: ['前端', 'CSS']
 ---
+import SharedSandbox from '@/components/feature/SharedSandbox.astro';
+
+## 前置知识
+
+在我们讨论如何进行垂直居中前，先整理一下将使用到的术语，以避免可能的理解差异。
+
+### 盒子树和盒子
+
+[盒子树](https://drafts.csswg.org/css-display-4/#box-tree)是用于 CSS 渲染的一个中间结构，表示了被渲染文档的格式化结构。每个盒子树中的[盒子](https://drafts.csswg.org/css-display-4/#box)表示了其空间和/或时间上对应的元素，而盒子树中的每个文本序列同样表示了其文本节点对应的内容。
+
+### 包含块
+
+[包含块](https://drafts.csswg.org/css-display-4/#containing-block)是一个矩形，规定了其相关盒子的尺寸和位置。特别指出，包含块不是盒子（它是个矩形），但它通常来源于盒子的尺寸。每个盒子都根据其包含块被给定了位置，但不会被此包含块限制。它可以溢出。短语“一个盒子的包含块”指的是盒子所在处的包含块，并不是说其生成的包含块。
 
 TODO：整理样式、分类并排版
+## 如何垂直居中？
 
-1. **直接调整法计算**：
+### 1. 指定绝对位置
 
-使用绝对定位 + margin调整的方式。需要子容器的宽高固定，数学计算精确的像素修正子元素的位置（对老旧浏览器兼容较好）。
+第一种方法显得比较笨，它是这样的：
 
-   ```css
-   .parent {
-     position: relative;
-     width: 100px;
-     height: 50px;
-     background-color: wheat;
-   }
-   
-   .child {
-     position: absolute;
-     width: 20px;
-     height: 20px;
-     top: 50%;
-     left: 50%;
-     margin-top: -10px;
-     margin-left: -10px;
-     background-color: aquamarine;
-   }
-   ```
+在父元素和子元素的宽高对开发者已知时，可以使用绝对定位加些许偏移调整的方式使其子元素居中（margin，或是根据计划偏移的量修改绝对定位）。虽然现代前端开发不常用了，但是此方法的兼容性是最好的，而且不会占用子元素的 `transform` 属性。 
 
-   
+<aside>
+使用绝对定位属性时，元素相对于其 offsetParent 进行移动。我们可以通过声明 `position` 为非 `static` 值指明其某一祖先容器元素作为其 offsetParent。最外层的 offsetParent 是 \<body\>，而不是 \<html\>。
+</aside>
 
- 2. **定位偏移法**：
- 
- 绝对定位使用百分比相对父容器大小偏移，加上transform: translate 属性附加相对自身大小的百分比平移。
+export const styleOne = `
+.parent {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+  
+.child {
+  position: absolute;
+  width: 40vw;
+  height: 40vh;
+  top: 50%;
+  left: 50%;
+  margin-left: -20vw;
+  margin-top: -20vh;
+  background-color: black;
+}
+`;
 
-    ```css
-    .parent {
-      position: relative;
-      width: 200px;
-      height: 200px;
-      background-color: wheat;
-    }
-    
-    .child {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 10%;
-      height: 10%;
-      background-color: aquamarine;
-    }
-    ```
+<SharedSandbox styleString={styleOne} />
 
-    
+一旦父容器尺寸发生变化，那么被居中的子元素大概率要改变其样式，才能保持垂直居中的状态。其中，子元素的定位属性和外边界属性都是相对于包含块进行计算的，此例中，即为父元素。
 
-3. **定位 auto 法** **利用绝对定位的计算规则**：
+哦，我想起一个事情需要告诉你，有时候指定一些属性**会强制覆盖其他的属性**，有些不接受再次覆盖，有些仍可被覆盖。
 
-使用绝对定位display: absolute + margin: auto，需要子元素指定高度。
+比如我们这里，指定了绝对定位，那么它的显示类型被永久地覆盖为 `block`，可以设置尺寸等。同时，`z-index` 也相应地被设置为了 0，这个是可以覆盖的。
 
-   ```css
-   .parent {
-     position: relative;
-     width: 100vw;
-     height: 100vh;
-   }
-   
-   .child {
-     position: absolute;
-     margin: auto;
-     top: 0;
-     bottom: 0;
-     left: 0;
-     right: 0;
-     background: #000;
-     width: 40vw;
-     height: 40vh;
-   }
-   ```
+再如弹性容器覆盖弹性盒子的显示类型不可覆盖，以及使其宽度默认必须大于可容纳内容的最小宽度，后者可覆盖。
 
-   
 
-4. **弹性盒居中法**：
+
+### 2. 利用 CSS 函数 `translate` 
+
+在“指定绝对位置”的基础上，我们不再借助像素值这种绝对单位的值进行调整，改之以平移。
+
+`transform` 中的 `translate*` CSS 函数系列允许我们相对于元素自身进行偏移，而不是包含块。当然，你也可以使用 `matrix*` 系列函数，这可以使用变换矩阵一举囊括所有变换。
+
+这个方法看着非常美好，即使父元素大小不确定也可以生效，但代价是子元素再次需要使用 `transform` 时，必须添加已有的偏移函数，或是通过手动添加，或是通过 CSS 变量实现此需要。
+
+2022年以来较新浏览器开始支持的 `translate` 属性也可以类似地起到相似效果，而不占用 `transform`。
+
+export const styleTwo = `
+.parent {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40vw;
+  height: 40vh;
+  background-color: #000;
+}
+`;
+
+<SharedSandbox styleString={styleTwo} lang="css" />
+
+### 3. 活用盒模型的计算规则
+
+我们对元素进行水平居中时可以在子元素尺寸指定时，利用 `margin: 0 auto` 指定水平两侧外边距为 `auto`，那有没有可能借助此属性，在垂直上使得子元素居中呢？
+
+是可以的。
+
+默认情况下，流布局中仅有外部显示类型为块级的元素才会具备此约束——水平方向上，`left`、`right`、`margin`、`padding`、以及内容盒的 `width` 相加值必须要与其包含块的宽度相等。这意味着，如果其中一个值为负值是合法的，那么其他值需要增加相应的值以满足此条件。反之亦然。如果所有值都具体指定，那么文本方向的最后一个属性（通常是 `left` 或 `right`）将会被重置为 `auto`。在此场景下，只要元素指定 `auto`，便可以将剩余的值（可负）相等地划分给该元素。当然，前提是支持 `auto` 值。
+
+我们有两种方法可以启用垂直方向的此约束。
+1. 指定元素为绝对定位元素。
+2. 使父元素为弹性容器，子元素相应成为弹性元素，规定垂直方向对应的轴以 `strench` 排布内容。
+3. 使父元素为网格容器，子元素相应成为网格元素，规定垂直方向对应的轴以 `strench` 排布内容。
+
+当然，方法2和3再为了居中使用 margin 就多此一举了。不过，这可以帮助我们预测样式可能出现的问题。
+
+方法1需要指定元素对应方向——我们这里是上和下方向——以使外边距可以充分填充内容。绝对定位并指定各方向为0的情况很常见，过去没有 vh/vw 时，我们常常用这个方法去让元素占据整个视口，但你是否知道此时垂直方向再加上 `margin: auto 0` 可以让元素外边距划分剩余空间，从而居中元素呢？
+
+export const styleThree = `.parent {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  position: absolute;
+  margin: auto;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #000;
+  width: 40vw;
+  height: 40vh;
+}`;
+
+<SharedSandbox styleString={styleThree} lang="css" />
+
+### 4. 借助行内框的对齐属性
+
+这也是一个古早时期就用于垂直居中的技巧。这个技巧主要分为两种：
+1. 使用 `line-height`。
+2. 使用 `vertical-align`。
+
+方法1使得行内元素所在行框的高度变化，变至与包含块相同的高度，从视觉上达到居中的效果。因为 `line-height` 的百分比是相对其包含块计算的，所以我们需要指定其他类型的值。
+
+export const styleFourA = `.parent {
+  width: 100vw;
+  height: 100vh;
+  vertical-align: middle;
+  line-height: 100vh;
+  text-align: center;
+}
+
+.child {
+  display: inline-block;
+  margin: 0 auto;
+  width: 40vw;
+  height: 40vh;
+  line-height: normal;
+  background: #000;
+}`;
+
+<SharedSandbox styleString={styleFourA} lang="css" />
+
+发现突出的方块了吗？那是用于对比子元素是否居中的辅助提示，如果完全覆盖，则证明真正地垂直居中了。看来设置行高没有让子元素完全居中啊。
+
+为什么会出现这种情况呢？这是因为，块级元素内部为每一行生成行框，而行框内部的行内元素默认情况会与此行框的基线位置对齐。如果是非文字节点的行内元素，比如说我们这里的行内块
+
+
+
+你可能也注意到此方法必须设置子元素外部显示类型为行内元素了。因此，子元素的块级行宽约束将失效，不再可以使用 `margin: auto 0` 进行水平居中。相应地，我们因此可以借助设置父元素 `text-align: center` 以居中子元素。
+
+export const styleFourB = `.parent {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  display: block;
+  margin: 0 auto;
+  width: 40vw;
+  height: 40vh;
+  background: #000;
+}`;
+
+<SharedSandbox styleString={styleFourB} lang="css" />
+
+### 4. 弹性盒居中
 
 使用Flexible Box（一般称为flexbox，或flex布局）中的 align-items: center;
 
@@ -107,7 +205,7 @@ TODO：整理样式、分类并排版
 
    
 
-5. **JS计算法：**
+### 5. **JS计算法：**
 
 JavaScript 获取父容器、子容器宽高，使用绝对定位计算子元素在父容器中的位置。
 
@@ -401,4 +499,4 @@ JavaScript 获取父容器、子容器宽高，使用绝对定位计算子元素
       height: 40vh;
       background-color: #000;
     }
-    ```
+    ```import type { transform } from 'lodash';
