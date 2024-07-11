@@ -1,6 +1,7 @@
 ---
 // Import the global.css file here so that it is included on
 // all pages through the use of the <BaseHead /> component.
+import { IS_PROD } from '@/consts';
 import '@/styles/base.css';
 import '@/styles/global.css';
 
@@ -83,3 +84,18 @@ const mediaImageURL = image ? new URL(image, Astro.url) : '';
    */
   // const preferScheme = window.localStorage.getItem('prefer-scheme');
 </script>
+
+<!-- Google Analytics -->
+<!-- Google tag (gtag.js) -->
+<script async is:inline src="https://www.googletagmanager.com/gtag/js?id=G-HMW76KDJP4"></script>
+{
+  IS_PROD && (
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-HMW76KDJP4');
+    </script>
+  )
+}
