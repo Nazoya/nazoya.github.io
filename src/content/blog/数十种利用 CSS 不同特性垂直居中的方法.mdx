@@ -4,7 +4,15 @@ description: '了解各种稀奇古怪的垂直居中方法虽然没法当饭吃
 pubDate: '2024-06-27'
 tags: ['前端', 'CSS']
 ---
+import { Image } from 'astro:assets';
 import SharedSandbox from '@/components/feature/SharedSandbox.astro';
+import imageInPosition from '@/assets/images/垂直居中.svg';
+import imageInPositionXCenter from '@/assets/images/垂直居中水平居中.svg';
+import imageOffset from '@/assets/images/垂直居中溢出.svg';
+import imageOffsetFixed from '@/assets/images/垂直居中溢出修复.svg';
+import imageInvalid from '@/assets/images/垂直居中属性失效.svg';
+
+!注意：本文中各专业名词待校正，现可能出现不一致的情况，请注意。
 
 ## 前置知识
 
@@ -18,21 +26,32 @@ import SharedSandbox from '@/components/feature/SharedSandbox.astro';
 
 [包含块](https://drafts.csswg.org/css-display-4/#containing-block)是一个矩形，规定了其相关盒子的尺寸和位置。特别指出，包含块不是盒子（它是个矩形），但它通常来源于盒子的尺寸。每个盒子都根据其包含块被给定了位置，但不会被此包含块限制。它可以溢出。短语“一个盒子的包含块”指的是盒子所在处的包含块，并不是说其生成的包含块。
 
-TODO：整理样式、分类并排版
-## 如何垂直居中？
+### 显示类型
+
+我们称元素样式的 `display` 属性设定的元素表现类型为显示类型。
+
+## 垂直居中分类
+
+我们将数十种方法总结为以下七类，每类可能附带不同细分的方法：
 
 ### 1. 指定绝对位置
 
 第一种方法显得比较笨，它是这样的：
 
-在父元素和子元素的宽高对开发者已知时，可以使用绝对定位加些许偏移调整的方式使其子元素居中（margin，或是根据计划偏移的量修改绝对定位）。虽然现代前端开发不常用了，但是此方法的兼容性是最好的，而且不会占用子元素的 `transform` 属性。 
+在父元素和子元素的宽高对开发者已知时，可以使用绝对定位加些许偏移调整的方式使其子元素居中（margin，或是自己计算偏移的量修改绝对定位）。虽然现代前端开发不常用了，但是此方法的**兼容性是最好的**，而且不会占用子元素的 `transform` 属性。[`margin` 兼容性](https://caniuse.com/mdn-css_properties_margin)和 [`position` 的兼容性](https://caniuse.com/mdn-css_properties_position)可点击查看。
 
 <aside>
 使用绝对定位属性时，元素相对于其 offsetParent 进行移动。我们可以通过声明 `position` 为非 `static` 值指明其某一祖先容器元素作为其 offsetParent。最外层的 offsetParent 是 \<body\>，而不是 \<html\>。
 </aside>
 
-export const styleOne = `
-.parent {
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleOne = `.parent {
   position: relative;
   width: 100vw;
   height: 100vh;
@@ -40,27 +59,25 @@ export const styleOne = `
   
 .child {
   position: absolute;
-  width: 40vw;
-  height: 40vh;
   top: 50%;
   left: 50%;
   margin-left: -20vw;
   margin-top: -20vh;
+  width: 40vw;
+  height: 40vh;
   background-color: black;
 }
 `;
 
 <SharedSandbox styleString={styleOne} />
 
-一旦父容器尺寸发生变化，那么被居中的子元素大概率要改变其样式，才能保持垂直居中的状态。其中，子元素的定位属性和外边界属性都是相对于包含块进行计算的，此例中，即为父元素。
+一旦父容器尺寸发生变化，那么被居中的子元素大概率要改变其样式，才能保持垂直居中的状态。其中，子元素的定位属性和外边界属性都是相对于包含块进行计算的，此例中，包含块由父元素生成，对应父元素的尺寸。
 
 哦，我想起一个事情需要告诉你，有时候指定一些属性**会强制覆盖其他的属性**，有些不接受再次覆盖，有些仍可被覆盖。
 
 比如我们这里，指定了绝对定位，那么它的显示类型被永久地覆盖为 `block`，可以设置尺寸等。同时，`z-index` 也相应地被设置为了 0，这个是可以覆盖的。
 
 再如弹性容器覆盖弹性盒子的显示类型不可覆盖，以及使其宽度默认必须大于可容纳内容的最小宽度，后者可覆盖。
-
-
 
 ### 2. 利用 CSS 函数 `translate` 
 
@@ -72,8 +89,14 @@ export const styleOne = `
 
 2022年以来较新浏览器开始支持的 `translate` 属性也可以类似地起到相似效果，而不占用 `transform`。
 
-export const styleTwo = `
-.parent {
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleTwo = `.parent {
   position: relative;
   width: 100vw;
   height: 100vh;
@@ -86,13 +109,13 @@ export const styleTwo = `
   transform: translate(-50%, -50%);
   width: 40vw;
   height: 40vh;
-  background-color: #000;
+  background-color: black;
 }
 `;
 
 <SharedSandbox styleString={styleTwo} lang="css" />
 
-### 3. 活用盒模型的计算规则
+### 3. 利用盒模型的计算规则
 
 我们对元素进行水平居中时可以在子元素尺寸指定时，利用 `margin: 0 auto` 指定水平两侧外边距为 `auto`，那有没有可能借助此属性，在垂直上使得子元素居中呢？
 
@@ -102,12 +125,21 @@ export const styleTwo = `
 
 我们有两种方法可以启用垂直方向的此约束。
 1. 指定元素为绝对定位元素。
-2. 使父元素为弹性容器，子元素相应成为弹性元素，规定垂直方向对应的轴以 `strench` 排布内容。
-3. 使父元素为网格容器，子元素相应成为网格元素，规定垂直方向对应的轴以 `strench` 排布内容。
+2. 使父元素为**弹性容器**，子元素相应成为弹性元素，规定垂直方向对应的轴以 `strench` 排布内容。
+3. 使父元素为**网格容器**，子元素相应成为网格元素，规定垂直方向对应的轴以 `strench` 排布内容。
 
-当然，方法2和3再为了居中使用 margin 就多此一举了。不过，这可以帮助我们预测样式可能出现的问题。
+当然，方法2和3再为了居中使用 margin 就多此一举了。不过，了解这个特性这可以帮助我们预测样式可能出现的问题。
+
+#### 方法1：指定元素为绝对定位元素
 
 方法1需要指定元素对应方向——我们这里是上和下方向——以使外边距可以充分填充内容。绝对定位并指定各方向为0的情况很常见，过去没有 vh/vw 时，我们常常用这个方法去让元素占据整个视口，但你是否知道此时垂直方向再加上 `margin: auto 0` 可以让元素外边距划分剩余空间，从而居中元素呢？
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
 
 export const styleThree = `.parent {
   position: relative;
@@ -122,25 +154,91 @@ export const styleThree = `.parent {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #000;
   width: 40vw;
   height: 40vh;
+  background-color: black;
 }`;
+
 
 <SharedSandbox styleString={styleThree} lang="css" />
 
-### 4. 借助行内框的对齐属性
+#### 方法2：使父元素为**弹性容器**
 
-这也是一个古早时期就用于垂直居中的技巧。这个技巧主要分为两种：
-1. 使用 `line-height`。
-2. 使用 `vertical-align`。
+我猜，你可能意外发现过这个方法，但没有细想。打开开发者面板，选中子元素看一下计算后的边距吧！你会发现，无论你怎么调整父元素的弹性盒布局相关属性，子元素永远是居中的。这也太奇怪了。
 
-方法1使得行内元素所在行框的高度变化，变至与包含块相同的高度，从视觉上达到居中的效果。因为 `line-height` 的百分比是相对其包含块计算的，所以我们需要指定其他类型的值。
+其实，生成弹性盒上下文后，内部相关弹性属性计算需要先考虑元素原本的尺寸，随后再将多余的空间按照指定的规则分配，或是缺少的空间按照指定的规则从各子元素扣除。但 `margin: auto` 在这之前根据弹性盒元素的基准 `flex-biasis` 被计算了，因此，在此情况时，无论你怎么调整弹性盒关于内容分布的其他属性，内部总是没有多余/缺少的空间，不会产生变化。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleThreeF = `.parent {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  margin: auto;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleThreeF} lang="css" />
+
+给出弹性盒布局中元素计算的公式：
+如果每个弹性元素
+
+#### 方法3：使父元素为**网格容器**
+
+类似于方法2，网格布局也可以这样操作。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleThreeG = `.parent {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  margin: auto;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleThreeG} lang="css" />
+
+### 4. 利用 `vertical-align`
+
+这也是一个古早时期就用于垂直居中的技巧。这个技巧按照如何处理其余要素，主要分为两种：
+1. 不修父元素显示类型，设置父和子 `line-height`。
+2. 修改父元素显示类型为 `table-cell`。
+
+#### 方法1：不修父元素显示类型，设置父和子 `line-height`
+
+方法1使得行内元素所在行框的高度变化，变至与包含块相同的高度，从视觉上达到居中的效果。因为 `line-height` 的百分比是相对其包含块计算的，所以我们需要指定其他类型的值。你也必须**额外指定子元素的 `line-height`**，以改变其行框的高度大致等同于其高度用以对齐。不要忘了这一点，尽管有时候可能不需要额外地调整。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageOffset} alt='方法1的居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>方法1的居中效果</figcaption>
+  </figure>
+</div>
 
 export const styleFourA = `.parent {
   width: 100vw;
   height: 100vh;
-  vertical-align: middle;
   line-height: 100vh;
   text-align: center;
 }
@@ -150,19 +248,91 @@ export const styleFourA = `.parent {
   margin: 0 auto;
   width: 40vw;
   height: 40vh;
-  line-height: normal;
-  background: #000;
+  line-height: 40vh;
+  background-color: black;
 }`;
 
 <SharedSandbox styleString={styleFourA} lang="css" />
 
-发现突出的方块了吗？那是用于对比子元素是否居中的辅助提示，如果完全覆盖，则证明真正地垂直居中了。看来设置行高没有让子元素完全居中啊。
+发现突出的方块了吗？那是用于对比子元素是否居中的辅助提示，如果完全覆盖，则证明真正地垂直居中了。看来设置行高没有让子元素完全居中。
 
-为什么会出现这种情况呢？这是因为，块级元素内部为每一行生成行框，而行框内部的行内元素默认情况会与此行框的基线位置对齐。如果是非文字节点的行内元素，比如说我们这里的行内块
+为什么会出现这种情况呢？这是因为，块级元素内部为每一行生成行框，而行框内部的行内元素默认情况会与此行框的**基线位置对齐**，即 `vertical-align` 默认为 `baseline`。
 
+如果是文字节点（匿名非置换行内元素）或非置换行内元素，使用其行内框基线与行框基线对齐。如果是行内置换元素，规范未作说明，因此以实现为准，Chrome 会将默认以高度的一半为基准与基线对齐。
 
+这也是我们布局图片和文字时，它们垂直上默认总是不对齐的原因。
 
-你可能也注意到此方法必须设置子元素外部显示类型为行内元素了。因此，子元素的块级行宽约束将失效，不再可以使用 `margin: auto 0` 进行水平居中。相应地，我们因此可以借助设置父元素 `text-align: center` 以居中子元素。
+<div class='flex justify-center mb-8'>
+  <figure class='inline-block h-48 text-center'>
+    <div class='relative w-full mx-auto leading-[12rem]'>
+      <span class='inline-block w-32 h-32 leading-[8rem] text-white bg-black'>行内非置换元素</span>
+      <img src='data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=' style='display: initial' class='m-0 w-32 h-32' alt='行内置换元素' />
+      <span class='absolute top-1/2 right-4 inline-block text-white leading-4 -translate-y-1/2'>行内置换元素</span>
+    </div>
+    <figcaption>不同类型行内元素</figcaption>
+  </figure>
+</div>
+
+<div class='flex justify-center'>
+  <figure>
+    <div class='text-base h-8 border px-4 bg-yellow-100'>
+      <span>行内非置换元素</span>
+      <img src='data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=' style='display: initial' class='m-0 size-4' alt='行内置换元素' />
+    </div>
+    <figcaption>在行内元素布局图片和文字</figcaption>
+  </figure>
+</div>
+
+那么，如果我们指定 `vertical-align` 为 `middle` 呢？这回都全居中了，总该覆盖上了吧。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageOffsetFixed} alt='方法1修正后的居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>方法1修正后的居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleFourAM = `.parent {
+  width: 100vw;
+  height: 100vh;
+  line-height: 100vh;
+  text-align: center;
+}
+
+.child {
+  display: inline-block;
+  margin: 0 auto;
+  width: 40vw;
+  height: 40vh;
+  line-height: 40vh;
+  vertical-align: middle;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleFourAM} lang="css" />
+
+还是有一点点冒出来了，不过问题不大！如果没有像素级还原的要求，再加上这个突出相对整个父元素高度较小，其实就无所谓了。这个凸出部分有多小呢？指定行内元素 `vertical-align: middle` 时，其将把自己的垂直方向一半的位置与父元素基线往上半个 x 高度的位置对齐。这半个 x 高度，就是凸出部分的高度了。（x 高度，即 0.5ex，为字母 x 在该字体此时对应字号的高度，一般浏览器中实现为当前字号高度的一半）
+
+所以，此方法中，我们**常常需要额外加上负值外边距或位置偏移以精准地进行居中**。
+
+你可能也注意到了，此方法必须设置子元素外部显示类型为行内，即 `inline` 或 `inline-block`。因此，子元素的块级行宽约束将失效，不再可以使用 `margin: auto 0` 进行水平居中。相应地，我们因此可以借助设置父元素 `text-align: center` 以居中子元素。
+
+这是一个缺点相当明显的方法。现在我们的行高和父元素生成的容纳块高度一致，如果居中的是文本，在**换行**时甚至可能出现两倍高的子元素，**出现非预期的样式**。
+
+另一个更大的负面影响是，如果我们子元素内部嵌套了其他元素，**这些元素的 `line-height` 全部会继承**我们此处的设置，要提高警惕。
+
+#### 方法2：修改父元素显示类型为 `table-cell`。
+
+`vertical-align` 可以应用于行内元素和表格单元格元素，对于不同显示类型的容器，其各值的对齐基准都不同，甚至像我们刚才提到的，行内非置换和置换元素部分值也会有差异。这在 [MDN 文档的相应页面](https://developer.mozilla.org/zh-CN/docs/Web/CSS/vertical-align)进行了详细的说明。
+
+对于显示类型为 `table-cell` 的元素，垂直居中其子元素就要轻松得多了。因为设置其子元素 `vertical-align: middle` 是真的将子元素的垂直中心与父元素的中心对齐。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPositionXCenter} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
 
 export const styleFourB = `.parent {
   display: table-cell;
@@ -177,326 +347,421 @@ export const styleFourB = `.parent {
   margin: 0 auto;
   width: 40vw;
   height: 40vh;
-  background: #000;
+  background-color: black;
 }`;
 
 <SharedSandbox styleString={styleFourB} lang="css" />
 
-### 4. 弹性盒居中
+使用此方法，需要考虑父元素的显示类型是否可以正常覆盖。假如我们父元素处于一个弹性盒布局或是网格布局中，那么其显示类型被锁定，是无法设置的。另外，如果你需要指定内部的格式上下文，如设置弹性盒格式上下文，那就与 `table-cell` 冲突了。
 
-使用Flexible Box（一般称为flexbox，或flex布局）中的 align-items: center;
+### 5. 利用弹性盒格式上下文
 
-或是将行列转置（flex-direction: column）后使用justify-content: center。（常用）
+这也是现代前端开发中最常用且最好用的一种居中方法。
 
-   ```css
-   /* 行居中 */
-   .row {
-       display: flex;
-       align-items: center;
-   }
-   
-   /* 列居中 */
-   .direction {
-       display: flex;
-       flex-direction: column;
-       justify-content: center;
-   }
-   ```
+当主轴方向为水平方向时，即 `flex-direction` 为 `row` 或 `row-reverse`， 仅需要设置交叉轴方向每个弹性盒**内**的内容分布。一是，设置父元素的 `align-items` 为 `center`。二可以直接设置子元素的 `align-self` 为 `center`。
 
-   
+当主轴方向为垂直方向时，即 `flex-direction` 为 `column` 或 `column-reverse` 时，仅需要设置主轴方向弹性盒的内容分布。可使父元素的 `justify-content` 为 `center`。此时你可能会考虑子元素的 `justify-self: center` 能否类似地达到同样效果，但在弹性盒子布局中，该属性是被忽略的。
 
-### 5. **JS计算法：**
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='行方向时使用 align-items: center' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>行方向时使用 `align-items: center`</figcaption>
+  </figure>
+</div>
 
-JavaScript 获取父容器、子容器宽高，使用绝对定位计算子元素在父容器中的位置。
+export const styleFiveR = `/* 行居中 */
+.parent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
 
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
 
-6. **表格单元法**：
+<SharedSandbox styleString={styleFiveR} lang="css" />
 
-**vertical-align 规则2的妙用**：父容器 display: table-cell; vertical-align: middle。
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>行方向时使用 `align-self: center`</figcaption>
+  </figure>
+</div>
 
-仅用于垂直对齐表格单元内容和容器；这里表格单元格中 middle 和行内元素中使用的 middle 含义不同，这里是真·居中，其他元素是中部与父元素基线+0.5ex。
+export const styleFiveRC = `/* 行居中 */
+.parent {
+  display: flex;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+}
 
-   注：注意父容器不能是弹性盒子布局中的弹性（子）元素，否则 table-cell 不生效。
+.child {
+  align-self: center;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}
+`; 
 
-   ```css
-   .parent {
-       display: table-cell;
-       text-align: center;
-       vertical-align: middle;
-       width: 100vw;
-       height: 100vh;
-   }
-   
-   .child {
-       display: block;
-       width: 40vw;
-       height: 40vh;
-       background: #000;
-   }
-   ```
-
-   
-
-7. **伪元素基线对齐法（伪居中）**：父元素设置伪元素，其height: 100%; vertical-align: middle，然后设置子元素display: inline / inline-block; vertical-align: middle；（以前很流行，不过是手动添加元素再偏移）
-
-   为什么要添加额外高度为 100% 的额外子元素？（因为基线是根据行框确定的。如果原先子元素的行框不足以撑满整个容器，那么基线位置就会离中间偏移非常大）
-
-   **使用 line-height 设置高度相同，也是出于此原理。**
-
-   ```css
-   .parent {
-     text-align: center;
-     width: 100vw;
-     height: 100vh;
-   } 
-   
-   .parent::before {
-     content: '';
-     display: inline-block;
-     height: 100%;
-     vertical-align: middle;
-   }
-   
-   .child {
-     display: inline-block;
-     vertical-align: middle;
-     background: #000;
-     width: 40vw;
-     height: 40vh;
-   }
-   ```
-
-   
-
-8. **弹性盒外边距法**：Flex布局+margin: auto:
-
-   原理：*-content 是分配剩余空间的属性，首先布局会根据 flex 和 元素大小计算宽高，如果 margin 有 auto，其先参与剩余空间划分，之后才是 *-contents。最后根据每个元素分得的空间，将它们分为弹性盒元素。
-
-   ```css
-   .parent {
-     display: flex;
-     width: 100vw;
-     height: 100vh;
-   } 
-   
-   
-   .child {
-     width: 40vw;
-     height: 40vh;
-     background-color: #000;
-     margin: auto;
-   }
-   ```
-
-   
-
-9. **弹性盒伪元素法：** Flex布局+伪元素：
-
-   ```css
-   .parent {
-     display: flex;
-     flex-direction: column;
-     width: 100vw;
-     height: 100vh;
-   } 
-   
-   .parent::before {
-     content: '';
-     flex: 1; /* 1 1 0 */
-   }
-   
-   .parent::after {
-     content: '';
-     flex: 1;
-   }
-   
-   
-   .child {
-     width: 40vw;
-     height: 40vh;
-     background-color: #000;
-   }
-   ```
-
-   
-
-10. **弹性盒自适应法**：Flex布局 + 子元素 align-self: center; （*-items 和 *-self 是群组设置和单个设置的关系）
-
-    ```css
-    .parent {
-      display: flex;
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    .child {
-      align-self: center;
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-11. **网格居中法：**Grid布局+align-items: center;
-
-    在 Grid 布局中，align-items 控制了子元素在其[网格区域](https://developer.mozilla.org/zh-CN/docs/Glossary/Grid_Areas)内的**块向轴**上的对齐
-
-    ```css
-    .parent {
-      display: grid;
-      align-items: center;
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    .child {
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-12. **网格自适应法：**Grid布局 + 子元素 align-self: center;
-
-    *-selfs - *-self
-
-    ```css
-    .parent {
-      display: grid;
-      margin: 0 auto;
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    .child {
-      align-self: center;
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-13. **网格伪元素法：**Grid布局、伪元素和grid-template-rows：
-
-    ```css
-    .parent {
-      display: grid;
-      grid-template-rows: repeat(3, 1fr);
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    .parent::before,
-    .parent::after {
-      content: "";
-    }
-    
-    .child {
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-14. **网格指定法：**Grid + 子元素 grid-row 指定行放置
-
-    如果再指定 父元素 grid-template-column: repeat(3, 1fr); 子元素 grid-column: 2; 可知使其水平居中。 
-
-    ```css
-    .parent {
-      display: grid;
-      grid-template-rows: repeat(3, 1fr);
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    
-    .child {
-      grid-row: 2;
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-15. **网格外边距法：**Grid + 子元素 margin: auto
-
-    ```css
-    .parent {
-      display: grid;
-      width: 100vw;
-      height: 100vh;
-    } 
-    
-    
-    .child {
-      margin: auto;
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
-
-    
-
-16. **弹性盒多行伪元素：** flex-wrap: wrap; 前后两个子元素; align-content 分配交叉轴剩余空间。
-
-    这里加两个伪元素是为了水平居中对齐，你也可以不加。
-
-    ```javascript
-    .parent {
-      display: flex;
-      flex-wrap: wrap;
-      width: 100vw;
-      height: 100vh;
-      align-content: center;
-    } 
-    
-    .parent::before {
-      content: '';
-      flex: 1; /* 1 1 0 */
-    }
-    
-    .parent::after {
-      content: '';
-      flex: 1;
-    }
-    
-    
-    .child {
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```
+<SharedSandbox styleString={styleFiveRC} lang="css" />
 
 
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>列方向时使用 `justify-content: center`</figcaption>
+  </figure>
+</div>
 
-17. **网格多行留白：** flex-wrap: wrap;  justify-content 分配列轴空白空间; align-content 分配行轴剩余空间。
+export const styleFiveC = `/* 列居中 */
+.parent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
 
-    ```css
-    .parent {
-      display: grid;
-      flex-wrap: wrap;
-      width: 100vw;
-      height: 100vh;
-      justify-content: center;
-      align-content: center;
-    }
-    
-    .child {
-      width: 40vw;
-      height: 40vh;
-      background-color: #000;
-    }
-    ```import type { transform } from 'lodash';
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
+
+<SharedSandbox styleString={styleFiveC} lang="css" />
+
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInvalid} alt='此时 justify-self: center 是不生效的' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>此时 `justify-self: center` 是不生效的</figcaption>
+  </figure>
+</div>
+
+export const styleFiveCC = `/* 列居中 */
+.parent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  justify-self: center;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
+
+<SharedSandbox styleString={styleFiveCC} lang="css" />
+
+### 6. 利用网格格式上下文
+
+相对于弹性盒布局的一维，网格布局又额外增加了一个维度，能做的事情就更多了！
+
+#### 方法1：`align-items` 或是 `align-self`
+
+首先，我们可以利用刚才提及的网格布局的那些属性，做垂直居中这件事。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSixAI = `.parent {
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
+
+<figure>
+  <SharedSandbox styleString={styleSixAI} lang="css" />
+  <figcaption class='text-center'>使用 `align-items: center`</figcaption>
+</figure>
+
+export const styleSixAS = `.parent {
+  display: grid;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  align-self: center;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
+
+<figure>
+  <SharedSandbox styleString={styleSixAS} lang="css" />
+  <figcaption class='text-center'>使用 `align-self: center`</figcaption>
+</figure>
+
+在网格布局中，`justify-content` 设置网格容器行内轴中各个格子和周围空间的分配，`justify-self` 设置这之中行轴方向每个格子内的分布。
+在网格布局中，`align-content` 设置网格容器中块级元素的块向轴和周围空间的分配，`align-self` 设置这之中行轴方向每个格子内的分布。
+
+此外，终于在网格布局中，`justify-self` 生效了。尽管不能交换网格布局的轴，用它进行垂直居中，但我们仍可以用它做水平居中，可喜可贺！
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSixJS = `.parent {
+  display: grid;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.child {
+  justify-self: center;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`; 
+
+<figure>
+  <SharedSandbox styleString={styleSixJS} lang="css" />
+  <figcaption class='text-center'>网格布局 `justify-self: center` 是生效的</figcaption>
+</figure>
+
+题外话：你可能在 MDN 文档或是草案规范中发现 `justify-self` 可以用来调整区块布局或是绝对定位的位置，但现在仍然在草案阶段（截止2024年7月10日），还是没有实现的。 
+
+#### 方法2：利用网格布局特性
+
+或用网格布局的特性，我们可以将元素放置到划分好的指定位置，像是：
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSixGr = `.parent {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-column: repeat(3, 1fr);
+  width: 100vw;
+  height: 100vh;
+} 
+
+
+.child {
+  grid-column: 2;
+  grid-row: 2;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSixGr} lang="css" />
+
+
+### 7. 利用伪元素
+
+这一类方法用于垂直居中就相对比较笨重了，但是个很好的思路。
+
+#### 方法1：直接插入固定高度的伪元素
+
+如果子元素高度调整，那么伪元素也必须相应调整了。可以通过 CSS 变量克服此缺点。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSevenIn = `.parent {
+  width: 100vw;
+  height: 100vh;
+}
+
+.parent::before,
+.parent::after {
+  display: block;
+  height: 30vh;
+  content: '';
+}
+
+.child {
+  margin: 0 auto;
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSevenIn} lang="css" />
+
+#### 方法2：借助弹性盒布局插入自动缩放的伪元素
+
+有点多此一举了，但其实也不是不能这样做。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSevenFl = `.parent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.parent::before,
+.parent::after {
+  flex: 1; /* 1 1 0 */
+  content: '';
+}
+
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSevenFl} lang="css" />
+
+#### 方法3：借助网格布局插入自动缩放的伪元素
+
+自然，我们如果划分好网格区域，也可以通过追加伪元素达到指定行列放置的效果。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSevenGr = `.parent {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  width: 100vw;
+  height: 100vh;
+}
+
+.parent::before,
+.parent::after {
+  content: "";
+}
+
+.child {
+  justify-self: center; /* 水平居中 */
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSevenGr} lang="css" />
+
+#### 方法4：弹性盒布局多行伪元素
+
+如果我们不将弹性盒的主轴方向进行改变，同样也可以通过换行实现居中。非常明显的缺点是类似于方法1，也需要指定伪元素的高度。同样可以通过 CSS 变量克服。
+
+这里使用了 `align-content: center`，使得我们交叉轴上的每一盒子内交叉轴方向可以居中地分布。这里使子元素水平居中了。
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+export const styleSevenFlWr = `.parent {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+} 
+
+.parent::before,
+.parent::after {
+  flex: 1 0 100%; /* 1 1 0 */
+  height: 30vh;
+  content: '';
+}
+
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSevenFlWr} lang="css" />
+
+#### 方法5：网格布局多行伪元素
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={imageInPosition} alt='居中效果' class='mx-auto h-[300px] w-auto border'  />
+    <figcaption class='text-center'>居中效果</figcaption>
+  </figure>
+</div>
+
+自然，我们如果划分好网格区域，也可以通过追加伪元素达到指定行列放置的效果。
+
+如果不设置，那么默认每个元素占据其中的一行。你可以选择使用 `align-content` 来调整块向轴如何分布（即纵向分布），或是为伪元素指定高度以矫正子元素的位置。
+
+export const styleSevenGrPr = `.parent {
+  display: grid;
+  flex-wrap: wrap;
+  justify-content: center; /* 水平居中 */
+  align-content: center;
+  width: 100vw;
+  height: 100vh;
+} 
+
+.parent::before,
+.parent::after {
+  content: '';
+}
+
+.child {
+  width: 40vw;
+  height: 40vh;
+  background-color: black;
+}`;
+
+<SharedSandbox styleString={styleSevenGrPr} lang="css" />
+
+## 结语
+
+我们总结了数十种利用 CSS 对元素进行居中的方法，对部分 CSS 的特性进行了回顾，现在，再遇到什么居中产生的异常情况应该难不倒你了。但要记住的是，除了纯 CSS 实现，我们也可以通过 JavaScript 计算去做位置的调整，这也是一个非常好的方法。
+
+## 参考资料
+
+\[1\]: [美]Eric A.Meyer. CSS 权威指南[M]. 安道. 北京: 中国电力出版社, 2019: 262-315, 564-734
+
+\[2\]: W3C. CSS Display Module Level 3 [DB/OL]. [参考链接](https://drafts.csswg.org/css-display/). 2023-11-22
+
+\[3\]: MDN Web Docs Community. vertical-align [DB/OL]. [参考链接](https://developer.mozilla.org/en-US/docs/Web/CSS/vertical-align). 2024-06-22
+
+\[4\]: MDN Web Docs Community. display [DB/OL]. [参考链接](https://developer.mozilla.org/en-US/docs/Web/CSS/display). 2024-06-22
