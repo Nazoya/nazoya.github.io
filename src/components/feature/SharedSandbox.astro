@@ -1,4 +1,5 @@
 ---
+// import { createHash } from 'crypto';
 import { Code } from 'astro:components';
 import {
   Sandpack,
@@ -6,14 +7,14 @@ import {
   // SandpackLayout,
   // SandpackCodeEditor,
   // SandpackPreview,
-} from "@codesandbox/sandpack-react";interface Props extends Record<string, any> {
+} from '@codesandbox/sandpack-react';
+interface Props extends Record<string, any> {
   styleString: string;
   files?: Record<string, string>;
-};
+}
 
 const { styleString, files, ...props } = Astro.props;
-
-const templateHTML = String.raw`<!DOCTYPE html>
+export const templateHTML = String.raw`<!DOCTYPE html>
 <html lang="zh-cn">
   <head>
     <meta charset="UTF-8" />
@@ -43,6 +44,9 @@ const templateHTML = String.raw`<!DOCTYPE html>
       background-color: green;
       opacity: 1;
     }
+    .child-img {
+      display: none;
+    }
     </style>
     <title>Sandbox</title>
   </head>
@@ -50,15 +54,17 @@ const templateHTML = String.raw`<!DOCTYPE html>
     <div class='parent'>
       <div class='child-aux'></div>
       <div class='child'>CHILD</div>
+      <img class='child child-img' src='data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=' />
     </div>
   </body>
 </html>`;
 
+// const hash = createHash(styleString + styleString + Math.random()).digest('hex');
 ---
 
 <>
-  <Code code={styleString} lang="css" />
-  <details open>
+  <Code code={styleString} lang='css' />
+  <details open={false}>
     <summary>在沙盒中尝试效果</summary>
     <Sandpack
       client:load

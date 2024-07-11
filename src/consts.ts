@@ -8,3 +8,4 @@ export const BLOG_PAGE_SIZE = 10;
 export const BLOG_RECENT_SIZE = 8;
 export const PROJECT_DIR = resolve(import.meta.dirname, '../');
 export const CONTENT_BLOG_DIR = resolve(import.meta.dirname, '../', 'src/content/blog');
+export const IS_PROD = import.meta.env.PROD;

@@ -7,7 +7,7 @@ import BlogPost from '@/layouts/BlogPost.astro';
 import Category from '@/components/feature/Category.astro';
 import { blogsSortedByUpdateAndPubDate } from '../../utils/collection-blog';
 import { fetchPackageJSON } from '@/utils/tools';
-import { CONTENT_BLOG_DIR } from '@/consts';
+import { CONTENT_BLOG_DIR, IS_PROD } from '@/consts';
 import { resolve } from 'path';
 
 export const getStaticPaths = async function () {
@@ -25,9 +25,8 @@ export const getStaticPaths = async function () {
 const { post: { data, id, render } } = Astro.props;
 const { Content, headings, remarkPluginFrontmatter, } = await render();
 const { repository } = await fetchPackageJSON();
-const isProd = import.meta.env.PROD;
 const contentDevURI = (resolve(CONTENT_BLOG_DIR, id)).replaceAll('\\', '\\\\');
-const editPage = isProd
+const editPage = IS_PROD
   ? `${repository as string}/tree/master/src/content/blog/${id}`
   : `/__open-in-editor?file=${contentDevURI}`;
 const { lastModified, msForReading, words } = remarkPluginFrontmatter;
