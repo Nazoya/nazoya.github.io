@@ -825,7 +825,7 @@ app.listen = function listen() {
 ```
 顺着路径查找，我们可以大致在 C++ 部分的源码中找到[相关的内容](https://github.com/nodejs/node/blob/41cb292778de65133d93a393853dc5caef2b8ee1/src/tcp_wrap.cc#L177)。同样，也是借助了宿主环境的事件循环能力。
 
-```C++
+```cpp
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
     : ConnectionWrap(env, object, provider) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
