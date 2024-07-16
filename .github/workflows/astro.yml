@@ -27,6 +27,7 @@ concurrency:
 env:
   BUILD_PATH: "." # default value when not using subfolders
   # BUILD_PATH: subfolder
+  PLAYWRIGHT_VERSION: "1.45.1" # default version for playwright in using
 
 jobs:
   build:
@@ -95,8 +96,19 @@ jobs:
         run: |
           ${{ steps.detect-package-manager.outputs.runner }} pagefind --site dist
         working-directory: ${{ env.BUILD_PATH }}
+      - name: Get installed Playwright version
+        id: playwright-version
+        run: echo "PLAYWRIGHT_VERSION=$(node -e "console.log(require('./package-lock.json').dependencies['@playwright/test'].version)")" >> $GITHUB_ENV
+      - name: Cache playwright binaries
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
       - name: Run E2E tests
         id: test-e2e
         run: |
