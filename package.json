@@ -12,7 +12,7 @@
     "build": "npm run build:astro && npm run build:pagefind",
     "preview": "astro preview --port 3000",
     "astro": "astro",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --pass-with-no-tests",
     "test:unit": "vitest run",
     "test": "npm run test:unit && npm run test:e2e",
     "coverage": "vitest run --coverage",

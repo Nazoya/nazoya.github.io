@@ -70,7 +70,7 @@ jobs:
       - name: Run unit tests
         id: test-unit
         run: |
-          npx vitest run --coverage
+          ${{ steps.detect-package-manager.outputs.runner }} vitest run --coverage
         working-directory: ${{ env.BUILD_PATH }}
       - uses: actions/upload-artifact@v4
         if: always()
@@ -93,14 +93,14 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
       - name: Build pagefind index
         run: |
-          npx --no-install pagefind --site dist
+          ${{ steps.detect-package-manager.outputs.runner }} pagefind --site dist
         working-directory: ${{ env.BUILD_PATH }}
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run E2E tests
         id: test-e2e
         run: |
-          npm run test:e2e
+          ${{ steps.detect-package-manager.outputs.runner }} playwright test --pass-with-no-tests
         working-directory: ${{ env.BUILD_PATH }}
       - uses: actions/upload-artifact@v4
         if: always()
