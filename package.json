@@ -10,8 +10,13 @@
     "build:pagefind": "npx pagefind --site dist && node ./scripts/post-build.mjs",
     "build:astro": "astro check --tsconfig tsconfig.json && astro build",
     "build": "npm run build:astro && npm run build:pagefind",
-    "preview": "astro preview",
-    "astro": "astro"
+    "preview": "astro preview --port 3000",
+    "astro": "astro",
+    "test:e2e": "playwright test",
+    "test:unit": "vitest run",
+    "test": "npm run test:unit && npm run test:e2e",
+    "coverage": "vitest run --coverage",
+    "screenshot": "cross-env screenshot=1 playwright test __e2e__/screenshots.spec.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.7.0",
@@ -26,6 +31,7 @@
     "@tailwindcss/typography": "^0.5.13",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/xml2js": "^0.4.14",
     "astro": "^4.11.1",
     "lodash": "^4.17.21",
     "mdast-util-to-string": "^4.0.0",
@@ -35,10 +41,18 @@
     "rehype-katex": "^7.0.0",
     "remark-math": "^6.0.0",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.45.1",
+    "@types/jsdom": "^21.1.7",
     "@types/lodash": "^4.17.5",
-    "pagefind": "^1.1.0"
+    "@types/node": "^20.14.10",
+    "@vitest/coverage-v8": "^2.0.3",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "pagefind": "^1.1.0",
+    "vitest": "^2.0.2"
   }
 }

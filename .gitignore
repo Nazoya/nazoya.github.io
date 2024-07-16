@@ -17,11 +17,23 @@ pnpm-debug.log*
 
 
 # environment variables
-.env
-.env.production
+.env.local
+.env.*.local
 
 # macOS-specific files
 .DS_Store
 
 # jetbrains setting folder
 .idea/
+
+# vitest coverage
+/coverage/
+/__tests__/coverage/
+/__tests__coverage__/
+
+# playwright test result folder
+/__e2e__/results/
+/__e2e__results__/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

@@ -48,6 +48,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve(DIR, 'src'),
+        '$': DIR,
       },
     },
   },

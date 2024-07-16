@@ -1,5 +1,11 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "include": [
+    "__e2e__",
+    "__tests__",
+    "src",
+    "env.d.ts"
+  ],
   "exclude": [
     "public",
     "dist"
@@ -8,6 +14,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "$/*": [
+        "./*"
       ]
     },
     "strictNullChecks": true,
