@@ -1,0 +1,750 @@
+---
+title: '更快的异步函数和期约翻译参考'
+description: 这篇 V8 博客中“关于异步函数和期约进行的优化”，涉及 JavaScript 引擎内部期约的工作原理，饶有趣味，本人也是从这篇文章引起了兴趣，仔细研读了 ECMA-262 关于期约的部分。对于想了解 JavaScript 内部工作原理的开发者来说，确实值得一读。本人试着翻译了一番，以便自己和读者理解和查阅。
+pubDate: '2024-07-17'
+tags: ['前端', '翻译']
+slug: '更快的异步函数和期约翻译参考'
+---
+
+import { Image, Picture } from 'astro:assets';
+import doxbeeBenchmarkImage from '@/assets/images/doxbee-benchmark.svg';
+import parallelBenchmarkImage from '@/assets/images/parallel-benchmark.svg';
+import httpBenchmarkImage from '@/assets/images/http-benchmarks.svg';
+
+<aside>
+**原文链接： https://v8.dev/blog/fast-async**
+
+原文发布于 2018年11月12日，作者 Maya Armyanova 和 Benedikt Meurer，由 V8 团队出品，除非另外声明，所有 V8 项目中的代码示例都遵循 [V8 BSD 风格的许可](https://chromium.googlesource.com/v8/v8.git/+/main/LICENSE)，其他原文页面的内容遵循 [CC 3.0许可](https://creativecommons.org/licenses/by/3.0/)，其中详情请参考 [V8 网站条款](https://v8.dev/terms#site-policies)。
+</aside>
+
+<hr />
+
+长期以来，在 JavaScript 中的异步处理以不是非常快而周知。更糟糕的是，在 JavaScript 应用中实时调试并非简单的任务，对于 Node.js 服务器更是如此。如果涉及到异步编程，那就*让人更痛苦了*。不过还好，现在我们迎来了转机。这篇文章揭露了我们在 V8 中是如何优化异步函数和期约的（某种程度上说，算是在其他 JavaScript 引擎也进行了优化），同时对我们如何改进异步编码的调试体验做了描述。
+
+<aside>
+  注意：如果你更愿意观看演讲而不是阅读文章，来享受下面的视频吧！如果你偏好看文章多一些，请跳过视频继续阅读。
+</aside>
+
+Youtube 链接（需代理）：[Holding on to your Performance Promises -  Maya Lekova and Benedikt Meurer](https://youtu.be/DFP5DKDQfOc)
+
+## 异步编程的新方法
+
+### 从回调到期约，然后再是异步函数
+
+在期约成为 JavaScript 语言的一部分之前，我们通常使用基于回调的 API 来编写异步代码，在 Node.js 中尤其常见。以下是一个例子：
+
+```js
+function handler(done) {
+  validateParams((error) => {
+    if (error) return done(error);
+    dbQuery((error, dbResults) => {
+      if (error) return done(error);
+      serviceCall(dbResults, (error, serviceResults) => {
+        console.log(result);
+        done(error, serviceResults);
+      });
+    });
+  });
+}
+```
+
+像这种使用深度嵌套回调的具体模式通常被称为“回调地狱”。因为它削弱了代码的可读性，并使其难以维护。
+
+不过好在，既然期约现在是 JavaScript 语言的一部分了，同样的代码也可以用一种更优雅和可维护的风格编写：
+
+```js
+function handler() {
+  return validateParams()
+    .then(dbQuery)
+    .then(serviceCall)
+    .then(result => {
+      console.log(result);
+      return result;
+    });
+}
+```
+
+甚至在不久之前，JavaScript 增加了对于[异步函数](https://developers.google.com/web/fundamentals/primers/async-functions)的支持。上面的异步代码现在就能够以一种看着与同步代码非常相似的方式编写了：
+
+```js
+async function handler() {
+  await validateParams();
+  const dbResults = await dbQuery();
+  const results = await serviceCall(dbResults);
+  console.log(results);
+  return results;
+}
+```
+
+有了异步函数，代码自此变得更简洁，控制流和数据流也更易于理解，尽管，代码执行本质还是异步的。（注意，JavaScript 的执行仍然在单线程中发生，就是说异步函数归根到底其本身不创建物理上的线程。）
+
+### 从事件监听回调到异步迭代
+
+另一个在 Node.js 中极其常见的异步范式是 [ReadableStreams](https://nodejs.org/api/stream.html#stream_readable_streams)。这里给出一个示例：
+
+```javascript
+const http = require('http');
+
+http.createServer((req, res) => {
+  let body = '';
+  req.setEncoding('utf8');
+  req.on('data', (chunk) => {
+    body += chunk;
+  });
+  req.on('end', () => {
+    res.write(body);
+    res.end();
+  });
+}).listen(1337);
+```
+
+这段代码可能有点令人费解：传入的数据以只能以块（chunk）的形式被处理，而这种块只能够在回调中访问；同时，流结尾（end-of-stream）信号传递也是在回调中发生的。如果你不清楚这种（外层的）函数会立刻终止，而实际处理必须在回调中发生时，极易引入程序错误（bug）。
+
+幸运的是，ES2018 中一个非常酷的新功能——[异步迭代](http://2ality.com/2016/10/asynchronous-iteration.html)，可以简化这段代码：
+
+```js
+const http = require('http');
+
+http.createServer(async (req, res) => {
+  try {
+    let body = '';
+    req.setEncoding('utf8');
+    for await (const chunk of req) {
+      body += chunk;
+    }
+    res.write(body);
+    res.end();
+  } catch {
+    res.statusCode = 500;
+    res.end();
+  }
+}).listen(1337);
+```
+
+我们现在可以不再将处理实际请求处理放入两个不同的回调——`“data”` 和 `“end”` 回调之中，而是将所有逻辑放到单个的异步函数中，利用新的 `for await...of` 循环来异步地迭代块（chunk）了。同时，我们也添加了一个 `try-catch` 块以防出现 `unhandleRejection` 问题[<sup>[1]</sup>](#sup-1)。
+
+你现在已经可以在生产环境中使用这些新功能了！自 **Node.js 8（V8 v6.2 / Chrome 62） 开始完全支持**异步函数，同时自 **Node.js 10（V8 v6.8 / Chrome 68）开始完全支持异步迭代和生成器**！
+
+## 异步性能改进
+
+在 V8 v5.5（Chrome 55 & Node.js 7)）和 V8 v6.8（Chrome 68 & Node.js 10）之间，我们已经设法显著地改进了异步编码的性能。我们令其到达了开发者可以安全使用这些新的编程范式（programming paradigms）而无需担心速度的性能水平。
+
+<Image src={doxbeeBenchmarkImage} class='mx-auto' alt='doxbee 基准测试结果' />
+
+上图展示了 [doxbee 基准测试 ](https://github.com/v8/promise-performance-tests/blob/master/lib/doxbee-async.js) 的结果，测量了重度使用期约（promise-heavy）代码的执行性能。注意该图表可视化了执行时间，这意味着越低越好。
+
+而专门强调 `Promise.all()` 性能的[并行基准测试](https://github.com/v8/promise-performance-tests/blob/master/lib/parallel-async.js)结果，则更令人兴奋。
+
+<Image src={parallelBenchmarkImage} class='mx-auto' alt='并行基准测试结果' />
+
+我们已经设法将 `Promise.all` 的性能提高了**8倍**。
+
+但是，上述基准测试只是人造的微基准测试。V8 团队更感兴趣的是我们的优化是怎样影响[现实世界中实际用户代码的性能](https://v8.dev/blog/real-world-performance)的。
+
+<Image src={httpBenchmarkImage} class='mx-auto' alt='现实世界 http 中间件框架基准测试结果' />
+
+上图可视化了一些流行 HTTP 中间件框架的性能，这些框架都重度使用期约和 `async` 函数。请注意，这张图展示的是每秒的请求数，所以与之前的图表不同，这里越高代表更好。这些框架的性能在 Node.js 7（V8 v5.5）和 Node.js 10（V8 v6.8）之间得到了显著的提升。
+
+这些性能优化是三个关键成就的结果：
+
+* [TurboFan](https://v8.dev/docs/turbofan)，一个新的优化编译器（optimizing compiler）🎉
+* [Orinoco](https://v8.dev/blog/orinoco)，一个新的内存垃圾收集器（garbage collector）🚛
+* 一个导致 `await` 跳过微任务刻度（microtick）的 Node.js 8 程序错误 🐛
+
+当我们在 [Node.js 8](https://medium.com/the-node-js-collection/node-js-8-3-0-is-now-available-shipping-with-the-ignition-turbofan-execution-pipeline-aa5875ad3367) 推出 [TurboFan](https://v8.dev/blog/launching-ignition-and-turbofan) 时，它带来了巨大的性能提升。
+
+我们也一直致力于开发一种名为 Orinoco 的新的内存垃圾收集器。它将垃圾回收工作从主线程中移出，因此也显著地优化了请求处理。
+
+最后但同样重要的是，Node.js 8 中有一个非常便利的程序错误，其导致 `await` 在某些场景下跳过微任务刻度，导致了更好的性能。这个错误起初是无意的规范违反，但后来给予了我们对一次优化的构思。让我们从解释这一错误行为讲起：
+
+<aside>
+  注意：根据本文写作时的 JavaScript 规范，下面所说的行为表现都是无误的。在这之后，由于我们的规范提议被接受，下面提及的“错误（buggy）”行为现在成为正确行为了。
+</aside>
+
+```js
+const p = Promise.resolve();
+
+(async () => {
+  await p; console.log('after:await');
+})();
+
+p.then(() => console.log('tick:a'))
+ .then(() => console.log('tick:b'));
+```
+
+上面的程序创建了一个已兑现（fulfilled）的期约 `p`，并 `await` 其结果，但仍在它上面链接（chain）了两个处理程序（handler）。你认为这些 `console.log` 调用的执行顺序是怎样的？
+
+由于 `p` 已兑现，你可能预期它先打印 `'after:wait'` ，然后打印这些 `'tick'`。而事实上，这就是你在 Node.js 8 中得到的行为。
+
+import awaitBugNode8Image from '@/assets/images/await-bug-node-8.svg';
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={awaitBugNode8Image} class='mx-auto' alt='Node.js 8 中 await 的错误' />
+    <figcaption class='text-center'>Node.js 8 中 `await` 的错误</figcaption>
+  </figure>
+</div>
+
+尽管此行为看起来符合直觉，但根据规范，它并不正确。Node.js 10 实现了正确的行为，即首先执行链接的处理程序，然后才执行异步函数。
+
+import awaitBugNode10Image from '@/assets/images/await-bug-node-10.svg';
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={awaitBugNode10Image} class='mx-auto' alt='Node.js 10 中不再有这个 await 的错误' />
+    <figcaption class='text-center'>Node.js 10 中不再有这个 `await` 的错误</figcaption>
+  </figure>
+</div>
+
+这种*“正确行为”*可以说是隐晦的，实际上也是让 JavaScript 开发者感到惊讶的，所以它值得一些解释。在深入期约和异步函数的神奇世界前，让我们先从一些基础开始。
+
+### 任务与微任务
+
+在较高层次上，JavaScript 中有*任务（task）*和*微任务（microtask）*。任务处理像是 I/O 和计数器这样的事件，一次执行一个。微任务为 `async/await` 和期约实现延迟执行，并在每个任务结束时执行。在其执行返回到事件循环前，微任务队列始终被清空。
+
+import microtasksVsTasksImage from '@/assets/images/await-bug-node-10.svg';
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={microtasksVsTasksImage} class='mx-auto' alt='任务和微任务之间的区别' />
+    <figcaption class='text-center'>任务和微任务之间的区别</figcaption>
+  </figure>
+</div>
+
+更多详细信息请查阅 Jack Archibald 对[浏览器中的任务、微任务、队列和调度](https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/)的解释。
+
+### 异步函数
+
+根据 MDN 的说法，异步函数是一种使用隐式期约异步地操作返回其结果的函数。异步函数旨在使异步代码看起来像同步代码，从而为开发人员隐藏异步处理的一些复杂性。
+
+最简单的异步函数可能看起来像这样：
+
+```javascript
+async function computeAnswer() {
+  return 42;
+}
+```
+
+调用它会返回一个期约，之后你可以像是处理任何其他期约一样获取它的值。
+
+```js
+const p = computeAnswer();
+// → Promise （返回一个期约）
+
+p.then(console.log);
+// 将在下一轮微任务执行打印 42
+```
+
+只有下次运行微任务时，你才能获得此期约 `p` 的值。换言之，上述程序在语义上等同于用该值调用 `Promise.resolve`。
+
+```js
+function computeAnswer() {
+  return Promise.resolve(42);
+}
+```
+
+异步函数真正的力量来自 `await` 表达式，它使函数执行暂停，直到期约被解决（resolved），然后在其兑现后恢复执行。`await` 操作符的值是兑现的期约的值。下面是一个示例，对此进行了解释：
+
+```js
+async function fetchStatus(url) {
+  const response = await fetch(url);
+  return response.status;
+}
+```
+
+`fetchStatus` 的执行在 `await` 上被挂起，稍后在 `fetch` 的期约兑现时恢复。这或多或少等同于将一个处理程序链接到自 `fetch` 返回的期约上。
+
+```js
+function fetchStatus(url) {
+  return fetch(url).then(response => response.status);
+}
+```
+
+上面的处理程序包含了之前的异步函数中 `await` 之后的代码。
+
+通常，你会传递一个 `Promise` 给 `await`，但你其实可以等待（wait）任何类型的 JavaScript 值。如果在 `await` 后的表达式的值不是期约，它会被转化为一个期约。这意味着，如果你愿意，可以 `await 42` ：
+
+```js
+async function foo() {
+  const v = await 42;
+  return v;
+}
+
+const p = foo();
+// → Promise （返回一个期约）
+
+p.then(console.log);
+// 最终打印 `42`
+```
+
+更有趣的是，`await` 可以使用任何 [“thenable”](https://promisesaplus.com/) 值，或者说任何具有 `then` 方法的对象，即使它不是真正的期约。所以你可以实现一些有趣的事情，像是异步 sleep，测量实际消耗于 sleep 的时间（注：由于内部机制，timeout 不是精准的）：
+
+```js
+class Sleep {
+  constructor(timeout) {
+    this.timeout = timeout;
+  }
+  then(resolve, reject) {
+    const startTime = Date.now();
+    setTimeout(() => resolve(Date.now() - startTime),
+               this.timeout);
+  }
+}
+
+(async () => {
+  const actualTime = await new Sleep(1000);
+  console.log(actualTime);
+})();
+```
+
+让我们看看 V8 在引擎内部为 `await` 做了什么，按照[规范](https://tc39.es/ecma262/#await)来进行分析。这是一个简单的异步函数 `foo` ：
+
+```js
+async function foo(v) {
+  const w = await v;
+  return w;
+}
+```
+
+一旦调用，它会将参数包装成一个期约，并挂起异步函数的执行，直到期约被解决。一旦期约被解决，函数的执行就会恢复，同时 `w` 被赋值兑现期约中的值。这个值稍后将从异步函数中返回。
+
+### 引擎内部的 `await`
+
+首先，V8 将这个函数标记为 *resumable*（即可恢复的），意味着函数的执行可以被挂起并在稍后恢复（在 `await` 点，或等待点）。然后，它创建所谓的 `implicit_promise`，这是个在你调用此异步函数时返回的期约，最终以异步函数产生的值来解决。
+
+import awaitUnderTheHoodImage from '@/assets/images/await-under-the-hood.svg';
+
+<div class='flex justify-center'>
+  <figure>
+    <Image src={awaitUnderTheHoodImage} class='mx-auto' alt='简单异步函数和引擎对其转换结果之间的对比' />
+    <figcaption class='text-center'>简单异步函数和引擎对其转换结果之间的对比</figcaption>
+  </figure>
+</div>
+
+接下来是比较有趣的部分了：实际的 `await`。首先，传递给 `await` 的值被包装为一个期约 `promise`。之后，处理程序被附加到这个包装的期约上，用以在期约被兑现后恢复函数，同时异步函数的执行被挂起，返回 `implicit_promise` 给调用者。一旦这个 `promise` 被兑现，异步函数的执行将使用这个 `promise` 的值 `w` 恢复，并使用 `w` 解决 `implicit_promise`。
+
+简而言之，`await v` 的初始步骤是：
+
+1.  将传递给 `await` 的值 `v` 包装成一个期约。
+2.  附加处理程序以便稍后恢复异步函数。
+3.  挂起异步函数并返回 `implicit_promise` 给调用者。
+
+让我们一步步地查看各个操作。假设正在被 `await` 的东西已经是一个期约，并且已用值 `42` 兑现。然后引擎会创建新的期约 `promise` 并使用被 `await` 的任何内容来解决它。根据规范里所谓的 [`PromiseResolveThenableJob`](https://tc39.es/ecma262/#sec-promiseresolvethenablejob) 中的表述，这一操作确实推迟了这些期约在下一轮执行中的链接操作。
+
+import awaitStep1Image from '@/assets/images/await-step-1.svg';
+
+<Image src={awaitStep1Image} class='mx-auto' alt='await 步骤1' />
+
+然后引擎创建了另一个被称为 `throwaway` 的期约。其被称为 *throwaway* 的原因是没有任何东西会被链接到它上面——它完全是引擎内部的。这个 `throwaway` 期约之后被链接到 `promise` 上，一同链接的还有适当的处理程序，用以恢复异步函数。这一 `performPromiseThen` 操作本质是 [`Promise.prototype.then()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then) 在幕后所做的事。最后，异步函数的执行被挂起，控制返回给调用者。
+
+import awaitStep2Image from '@/assets/images/await-step-2.svg';
+
+<Image src={awaitStep2Image} class='mx-auto' alt='await 步骤2' />
+
+执行在调用者中继续，最终调用栈为空。然后 JavaScript 引擎开始运行微任务：它运行先前调度的 [`performPromiseThen`](https://tc39.es/ecma262/#sec-promiseresolvethenablejob)，其将调度一个新的 [`PromiseReactJob`](https://tc39.es/ecma262/#sec-promisereactionjob) 以将 `promise`  链接到传给 `await` 的值上（注：上文已假设值已经是期约了）。然后，引擎返回以处理微任务队列，因为在继续主要的事件循环之前必须清空微任务队列。
+
+import awaitStep3Image from '@/assets/images/await-step-3.svg';
+
+<Image src={awaitStep3Image} class='mx-auto' alt='await 步骤3' />
+
+接下来是 [`PromiseReactionJob`](https://tc39.es/ecma262/#sec-promisereactionjob)，它将使用我们正在 `await` 的期约中的值，在本例中是 `42`，去兑现 `promise` ，并将反应（reaction）安排到 `throwaway` 期约上。然后，引擎再次返回微任务循环，这之中包含了要处理的最后一个微任务。
+
+import awaitStep4Image from '@/assets/images/await-step-4-final.svg';
+
+<Image src={awaitStep4Image} class='mx-auto' alt='await 步骤4，最终步骤' />
+
+现在，这第二个 `PromiseReactionJob` 将解决（resolution）传播到了 `throwaway` 期约（即依次解决期约，然后执行到了 `throwaway`），并恢复了挂起的异步函数执行，从 `await` 返回了值 `42`。
+
+import awaitOverheadImage from '@/assets/images/await-overhead.svg';
+
+<figure class='text-center'>
+  <Image src={awaitOverheadImage} class='mx-auto' alt='await 开销概要' />
+  <figcaption>await 开销概要</figcaption>
+</figure>
+
+总结下目前我们了解到的，对于每个 `await`，引擎必须要创建**两个额外的**期约（即便右侧已经是一个期约）以及**至少三个**微任务队列刻度。谁知道一个 `await` 表达式怎么会导致*这么大的开销*！
+
+import awaitCodeBeforeImage from '@/assets/images/await-code-before.svg';
+
+<Image src={awaitCodeBeforeImage} class='mx-auto' alt='之前的 await 代码' />
+
+让我们看看这个开销是从哪里来的。第一行负责创建包装器期约。第二行立刻使用 `await` 的值 `v` 解决包装器期约。这两行就创建了一个额外的期约，外加这三个微任务中的两个。如果 `v` 已经是一个期约（这很常见，因为应用通常都会 `await` 期约）。在不太可能出现的情况下，开发人员 `await` 像是 `42` 这样的值，引擎仍然需要将其包装为期约。
+
+事实证明，规范中已经有了一个 [`promiseResolve`](https://tc39.es/ecma262/#sec-promise-resolve) 操作，仅在需要时执行包装。
+
+import awaitCodeComparisonImage from '@/assets/images/await-code-comparison.svg';
+
+<Image src={awaitCodeComparisonImage} class='mx-auto' alt='await 代码对比' />
+
+此操作原样返回期约，仅在需要时将其他值包装进期约。借助这种方式，在通常情况下传递给 `await` 的值已经是一个期约时，我们可以减少一个额外期约的消耗，也不用为微任务队列再添两个刻度了。这一新行为已经在 [V8 v7.2 中默认启用](https://v8.dev/blog/v8-release-72#async%2Fawait)。而在 V8 v7.1 中，你可以通过 `--harmony-await-optimization` 标志启用这一新行为。我们也[向 ECMAScript 规范提议了这一修改](https://github.com/tc39/ecma262/pull/1250)。
+
+以下是新的改进后的 `await` 在幕后工作方式，逐步地进行描述：
+
+import awaitNewStep1Image from '@/assets/images/await-new-step-1.svg';
+
+<Image src={awaitNewStep1Image} class='mx-auto' alt='await 新步骤1' />
+
+让我们再次假设我们 `await` 了一个已经用 `42` 兑现的期约。感谢 [`promiseResolve`](https://tc39.es/ecma262/#sec-promise-resolve) 的魔法，`promise` 现在仅引用了这一期约 `v`，所以此步无需进行任何操作。之后，引擎像之前一样继续执行，创建 `throwaway` 期约，调度一个 [`PromiseReactionJob`](https://tc39.es/ecma262/#sec-promisereactionjob) 以在下一个微任务队列上的刻度恢复异步函数，挂起当前函数的执行，并返回到调用者。
+
+import awaitNewStep2Image from '@/assets/images/await-new-step-2.svg';
+
+<Image src={awaitNewStep2Image} class='mx-auto' alt='await 新步骤2' />
+
+最终，当所有的 JavaScript 执行完成时，引擎开始运行微任务，所以它执行 [`PromiseReactionJob`](https://tc39.es/ecma262/#sec-promise-resolve)。这个任务将 `promise` 的解决传播给了 `throwaway`，并恢复异步函数的执行，从 `await` 生成（yield） `42`。
+
+import awaitOverheadRemovedImage from '@/assets/images/await-overhead-removed.svg';
+
+<figure class='text-center'>
+  <Image src={awaitOverheadRemovedImage} class='mx-auto' alt='await 开销减少的概要' />
+  <figcaption>await 开销减少的概要</figcaption>
+</figure>
+
+如果传递给 `await` 的值已经是期约，此优化将避免了创建包装器（wrapper）期约的需要。在这种情况下，我们从最少需要**三个**微刻度（microtick，同微任务刻度，或微任务队列上的刻度）到仅需要**一个**微刻度。这种行为与 Node.js 8 的做法类似，只不过它现在不再是一个错误——现在是正在被标准化的优化了！
+
+尽管完全是在引擎内部，但引擎必须创建这个 `throwaway` 期约还是感觉有点不对劲。事实证明，`throwaway` 期约只是为了满足规范中内部 `performPromiseThen` 操作的 API 约束。
+
+import awaitOptimizedImage from '@/assets/images/await-optimized.svg';
+
+<Image src={awaitOptimizedImage} class='mx-auto' alt='优化后的 await' />
+
+最近，ECMAScript 规范的[编辑性修改](https://github.com/tc39/ecma262/issues/694)解决了此问题。引擎不再需要为 `await` 创建 `throwaway` 期约——大部分时间是不用的[<sup>[2]</sup>](#sup-2)。
+
+import node10VsNode12Image from '@/assets/images/node-10-vs-node-12.svg';
+
+<figure class='text-center'>
+  <Image src={node10VsNode12Image} class='mx-auto' alt='node 10 对比 node 12' />
+  <figcaption>优化前和优化后 `await` 代码的对比</figcaption>
+</figure>
+
+将 Node.js 10 中的 `await` 和 Node.js 12 中可能出现的被优化的 `await` 进行的比较，展示了此变化对性能的影响：
+
+import benchmarkOptimizationImage from '@/assets/images/benchmark-optimization.svg';
+
+<Image src={benchmarkOptimizationImage} class='mx-auto' alt='优化后的基准测试' />
+
+**`async/await` 现在的性能表现要优于手写的期约代码了**。这里的关键点是，通过修补规范，我们显著减少了异步函数的开销——不仅仅是在 V8 中，而是在所有 JavaScript 引擎中。
+
+**更新：**自 V8 v7.2 和 Chrome 72 开始，已默认启用 `--harmony-await-optimization` 。对 ECMAScript 规范的[补丁](https://github.com/tc39/ecma262/pull/1250)已被合并。
+
+## 改善开发者体验
+
+除性能外，JavaScript 开发人员还关注诊断和修复问题的能力。要知道，处理异步代码问题时，诊断和修复问题并不总是很容易。[Chrome 开发者工具](https://developers.google.com/web/tools/chrome-devtools)支持*异步堆栈追踪（async stack traces）*，也就是说栈追踪不只包含当前栈的同步部分，同时还有异步部分：
+
+import devtoolsImage from '@/assets/images/devtools.png';
+
+<Picture src={devtoolsImage} formats={['avif', 'webp']} alt='开发者工具' class='mx-auto max-h-72 w-auto'  />
+
+在本地开发过程中，这是一个极其有用的功能。然而，一旦应用被部署，这种方法并不能真正帮到你。在事后调试期间，你只会看到日志文件中的 `Error#stack` 输出，而这不会告诉你关于异步部分的任何信息。
+
+我们最近一直致力于[*零成本异步堆栈追踪*](https://bit.ly/v8-zero-cost-async-stack-traces)，它通过异步函数调用丰富了 `Error#stack` 属性。“零成本”听起来让人兴奋，不是吗？在 Chrome 开发者工具功能带来大量开销时，怎么还能做到零成本的？考虑这个示例，`foo` 异步调用 `bar`，并且 `bar` 在 `await` 后抛出异常：
+
+```js
+async function foo() {
+  await bar();
+  return 42;
+}
+
+async function bar() {
+  await Promise.resolve();
+  throw new Error('BEEP BEEP');
+}
+
+foo().catch(error => console.log(error.stack));
+```
+
+在 Node.js 8 或 Node.js 10 中运行此代码会产生以下输出：
+
+```text
+$ node index.js
+Error: BEEP BEEP
+    at bar (index.js:8:9) // [!code highlight]
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:745:11)
+    at startup (internal/bootstrap/node.js:266:19)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:595:3)
+```
+
+注意，尽管对 `foo()` 的调用会导致错误，但 `foo` 根本不是堆栈追踪的一部分。这使得 JavaScript 开发者很难执行事后调试，不管你的代码是部署在 web 应用或是某些云容器中都是如此。
+
+这里有个有意思的点，引擎知道它在 `bar` 完成后必须在哪里继续：就在函数 `foo` 里的 `await` 之后。巧合的是，这也是函数 `foo` 被挂起的地方。引擎可以使用此信息来重建异步堆栈追踪的部分，即 `await`  位置。有了这个更改，输出就变为了：
+
+```text
+$ node --async-stack-traces index.js
+Error: BEEP BEEP
+    at bar (index.js:8:9) // [!code highlight]
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+    at Function.Module.runMain (internal/modules/cjs/loader.js:745:11)
+    at startup (internal/bootstrap/node.js:266:19)
+    at bootstrapNodeJSCore (internal/bootstrap/node.js:595:3)
+    at async foo (index.js:2:3) // [!code highlight]
+```
+
+在堆栈追踪中，最顶层的函数最先出现，然后是同步堆栈追踪其余的部分，再之后是函数 `foo` 内对 `bar` 的异步调用。此变更在 V8 中通过跟随新的 `--async-stack-trances` 标志实现。**更新：**从 V8 v7.3 开始，`--async-stack-traces` 默认被启用。
+
+但是，如果你将此与上述 Chrome 开发者工具中的异步堆栈调用对比，你会注意到堆栈追踪的异步部分缺少了实际调用 `foo` 的位置。就像我们之前提到的，此方法利用了 `await` 恢复和挂起的位置相同这一事实，但对于常规 [`Promise#then()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then) 或是 [`Promise#catch()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch) 调用，是不属于此情况的。有关更多背景知识，请查看 Mathias Bynens 在[为什么 `await` 击败了 `Promise#then()`](https://mathiasbynens.be/notes/async-stack-traces) 中的解释。
+
+## 结论
+
+通过两项重要的优化，我们使得异步函数更快了：
+
+* 对两个额外的微刻度的移除，以及
+* 对 `throwaway` 期约的移除。
+
+最重要的是，我们通过[*零成本异步堆栈追踪*](https://bit.ly/v8-zero-cost-async-stack-traces)改善了开发人员的体验，该追踪可以与异步函数中的 `await` 和 `Promise.all()` 配合使用。
+
+我们还有些给 JavaScript 开发者的不错性能建议：
+
+* 优先使用 `async` 函数和 `await` 而不是手写的期约代码，同时
+* 坚持使用 JavaScript 引擎提供的原生期约实现，以从简化中受益，也就是我们所说的对于 `await` 两个微刻度的回避。
+
+<hr />
+
+## 脚注
+
+<ol class='list-none p-0'>
+  <li id='sup-1' class='p-0'>
+    [1]：感谢  [Matteo Collina](https://twitter.com/matteocollina) 为我们指出[这个问题](https://github.com/mcollina/make-promises-safe/blob/master/README.md#the-unhandledrejection-problem)。
+  </li>
+  <li id='sup-2' class='p-0'>
+    [2]：如果在 Node.js 中使用 [`async_hooks`](https://nodejs.org/api/async_hooks.html)，V8 仍需要创建 `throwaway` 期约，因为 `before` 和 `after` 钩子在 `throwaway` 期约的*上下文*中运行。
+  </li>
+</ol>
+
+
+
+<hr />
+
+## 部分翻译对照表
+
+<table class='text-left'>
+  <caption>部分翻译对照表</caption>
+  <thead>
+    <th>原文</th>
+    <th>翻译</th>
+    <th>备注</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>promise</td>
+      <td>期约</td>
+      <td>按 JavaScript 高级程序设计名词翻译</td>
+    </tr>
+    <tr>
+      <td>async function(s)</td>
+      <td>异步函数</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>async programming</td>
+      <td>异步编程</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>asynchronous code</td>
+      <td>异步代码</td>
+      <td>code 作名词，译为代码</td>
+    </tr>
+    <tr>
+      <td>the control and data flow</td>
+      <td>控制流和数据流</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>async iteration</td>
+      <td>异步迭代</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>asynchronous paradigm</td>
+      <td>异步范式</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>chunk(s)</td>
+      <td>块</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>the end-of-stream signaling</td>
+      <td>流结尾信号传递</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>bug</td>
+      <td>（程序）错误</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>production</td>
+      <td>生产（环境）</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>programming paradigms</td>
+      <td>编程范式</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>parallel benchmark</td>
+      <td>并行基准测试</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>synthetic micro-benchmarks</td>
+      <td>人造的微基准测试</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>promise-heavy</td>
+      <td>重度使用期约（的）</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>performance improvements</td>
+      <td>性能优化</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>microtick</td>
+      <td>微任务刻度</td>
+      <td>指执行一个微任务的时间，类似游戏服务器的 tick</td>
+    </tr>
+    <tr>
+      <td>optimizing compiler</td>
+      <td>优化编译器</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>garbage collector</td>
+      <td>（内存）垃圾收集器</td>
+      <td>出自《计算机科学名词》第三版</td>
+    </tr>
+    <tr>
+      <td>fulfilled</td>
+      <td>（被）兑现（的）</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>chain</td>
+      <td>链接</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>handler</td>
+      <td>处理程序</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>arguably not immediately obvious</td>
+      <td>可以说是隐晦的</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>suspend</td>
+      <td>挂起</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>resume</td>
+      <td>恢复</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>task</td>
+      <td>任务</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>microtask</td>
+      <td>微任务</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>resolved</td>
+      <td>被解决</td>
+      <td>指期约从初始态转换为 fulfilled 或 rejected 两种最终态</td>
+    </tr>
+    <tr>
+      <td>under the hood</td>
+      <td>在内部，这里翻译为在引擎内部</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>await points</td>
+      <td>await 点/等待点</td>
+      <td>类似于 breakpoint 的概念，即进行 await 的地方，这里如果使用\`\`行内代码标志则不译</td>
+    </tr>
+    <tr>
+      <td>attach</td>
+      <td>附加</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>call stack</td>
+      <td>调用栈</td>
+      <td>对执行上下文栈的别名，或是抽象</td>
+    </tr>
+    <tr>
+      <td>schedule</td>
+      <td>调度/安排</td>
+      <td>安排任务到队列译为调度，其他情况一般为安排</td>
+    </tr>
+    <tr>
+      <td>reaction</td>
+      <td>反应</td>
+      <td>这里特指链接到期约上的回调，规范中的指代名词</td>
+    </tr>
+    <tr>
+      <td>resolution</td>
+      <td>解决</td>
+      <td>resolve 的名词形式，指代 resolve 行为</td>
+    </tr>
+    <tr>
+      <td>microtask queue ticks</td>
+      <td>微任务队列刻度</td>
+      <td>意即一次微任务出队并执行</td>
+    </tr>
+    <tr>
+      <td>refer to</td>
+      <td>引用</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>yield</td>
+      <td>生成</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>wrapper</td>
+      <td>包装器</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>microtick</td>
+      <td>微刻度</td>
+      <td>微任务刻度或微任务队列上的刻度的简称</td>
+    </tr>
+    <tr>
+      <td>editorial change</td>
+      <td>编辑性修改</td>
+      <td>标准学术语，不改变技术内容的修改</td>
+    </tr>
+    <tr>
+      <td>async stack traces</td>
+      <td>异步堆栈追踪</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>post-mortem debugging</td>
+      <td>事后调试</td>
+      <td>即发布应用后在上线环境中的调试</td>
+    </tr>
+    <tr>
+      <td>hand-written promise code</td>
+      <td>手写的期约代码</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+
