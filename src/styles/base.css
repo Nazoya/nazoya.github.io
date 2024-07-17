@@ -16,6 +16,14 @@
     --screen-lg: 1024px;
     --screen-xl: 1028px;
     --screen-2xl: 1536px;
+    --code-line-diff-remove-color: 244 63 94;
+    --code-line-diff-remove-opacity: 0.7;
+    --code-line-diff-add-color: 16 185 129;
+    --code-line-diff-add-opacity: 0.7;
+    --code-line-highlighted-color: 142 150 170;
+    --code-line-highlighted-opacity: 0.3;
+    --code-padding-x: 1.5rem;
+    --code-padding-y: 1.25rem;
   }
 }
 
@@ -31,4 +39,50 @@
       @apply text-current outline-none no-underline;
     }
   }
+}
+
+/* move out of layers, for shiki class will be attached after tailwindcss's process */
+.astro-code {
+  padding: var(--code-padding-y) var(--code-padding-x);
+}
+
+pre .diff,
+pre .highlighted {
+  display: inline-block;
+  margin: 0 calc(-1 * var(--code-padding-x));
+  padding: 0 var(--code-padding-x);
+  width: calc(100% + calc(2 * var(--code-padding-x)));
+  transition: background-color .5s;
+}
+
+pre .diff.add,
+pre .diff.remove {
+  position: relative;
+}
+
+pre .diff.add::before,
+pre .diff.remove::before {
+  position: absolute;
+  left: 12px;
+  display: block;
+  transform: translateX(-50%);
+}
+
+
+pre .diff.add {
+  background-color: rgb(var(--code-line-diff-add-color) / var(--code-line-diff-add-opacity));
+}
+pre .diff.add::before {
+  content: '+';
+}
+
+pre .diff.remove {
+  background-color: rgb(var(--code-line-diff-remove-color) / var(--code-line-diff-remove-opacity));
+}
+pre .diff.remove::before {
+  content: '-';
+}
+
+pre .highlighted {
+  background-color: rgb(var(--code-line-highlighted-color) / var(--code-line-highlighted-opacity));
 }

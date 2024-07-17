@@ -54,12 +54,15 @@ export default defineConfig({
   },
   markdown: {
     shikiConfig: {
-      theme: 'github-light',
-      transformers: [transformerNotationDiff(), transformerNotationHighlight()],
+      theme: 'github-dark',
+      transformers: [
+        transformerNotationDiff(),
+        transformerNotationHighlight(),
+      ],
     },
     remarkPlugins: [remarkMath, remarkModifiedTime, remarkReadingTime],
     rehypePlugins: [rehypeKatex, rehypeShiki],
-    syntaxHighlight: false,
+    syntaxHighlight: 'shiki',
     // gfm: true,
   },
   integrations: [
