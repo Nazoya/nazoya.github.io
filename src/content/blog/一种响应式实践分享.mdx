@@ -1,0 +1,319 @@
+---
+title: 一种响应式布局实践分享
+description: 一种基于 SCSS， 媒体查询 media query + Snippets，适用于中小型项目的响应式布局实践分享
+pubDate: 2024-08-31
+---
+import fileURI from '@/assets/files/code-responsive-and-emmet.zip'
+
+## 技术点
+SCSS + 媒体查询 media query + Snippets
+
+## 响应式布局经验
+<ol>
+  <li>
+    尽量避免固定元素的尺寸
+    <ol>
+      <li>
+        避免同时设置元素的 width 和 height
+```scss
+/* bad */
+.element {
+    width: 600px;
+    height: 400px;
+}
+/* good */
+/* 元素高度可以自然增长 */
+.element {
+    width: 600px;
+}
+```
+      </li>
+      <li>
+        对于图片，如果无特殊需求，尽量设置其 max-width 方便其缩小
+```scss
+/* 一般这样即可，如果有需求跟随需求走 */
+img {
+    max-width: 100%;
+}
+```
+      </li>
+    </ol>
+  </li>
+  <li>
+    不确定容器最终尺寸前，避免声明额外的样式
+  </li>
+  <li>
+    如果浏览器可以做，不要自己做
+  </li>
+  <li>
+    从最简单的移动端布局做起，逐渐向复杂的 PC 端靠拢
+    注：这样移动端将会加载相对较少的 CSS 规则，不需要进行样式覆盖
+  </li>
+</ol>
+
+## 借助 SCSS 特性响应式开发
+  <ol>
+    <li>
+      确定断点，使用 Variables 编写断点变量
+```scss
+$sm: 768px;
+$md: 1024px;
+$base: 1366px;
+```
+  </li>
+  <li>
+    建立转换函数，利用 @function 编写转换函数
+    关联：@use、内置模块 sass:math
+    根据我们可能涉及到的尺寸控制方案，编写对应的转换函数：
+    <ol>
+      <li>
+        方案1: 通过 vw 单位控制移动端元素大小 - vw()
+        <ul>
+          <li>
+            优点：适合像素细节还原度要求较高的页面，移动端可以根据宽度逐渐缩放
+          </li>
+          <li>
+            缺点：无障碍性较差
+          </li>
+        </ul>
+      </li>
+      <li>
+        方案2: 通过 rem 控制各元素大小 - rem()
+        <ul>
+          <li>
+            优点：无障碍性好，调整浏览器字体大小根据用户需求变化页面
+          </li>
+          <li>
+            缺点：不好还原元素较多的高精度图，比较适合简单页面
+          </li>
+        </ul>
+      </li>
+      <li>
+        其他方案，如相对百分比等
+      </li>
+    </ol>
+    备注：对于负值转换，可以这样使用：vs-sm(-60px);
+```scss
+/**
+* 转换器，替代 postcss 插件转换 vw 的功能
+*/
+@use "sass:string";
+@use 'sass:math';
+@use 'variables' as var;
+
+@function strip-units($number) {
+  @return math.div($number, ($number * 0 + 1));
+}
+
+@function vw($px: 0, $size: 1) {
+  @return strip-units($px/$size)*100 + vw; 
+}
+
+@function vh($px: 0, $size: 1) {
+  @return strip-units($px/$size)*100 + vh;
+}
+
+@function rem($px: 0, $size: 16) {
+  @return strip-units($px/$size) + rem;
+}
+
+// 以最小尺寸进行设置，手机等
+@function vw-sm($px) {
+  @return vw($px, var.$sm);
+}
+
+// 以中等尺寸设置，平板或老式电脑
+@function vw-md($px) {
+  @return vw($px, var.$md);
+}
+
+// 正常尺寸的电脑，如 mac 或者老式电脑等
+@function vw-base($px) {
+  @return vw($px, var.$base);
+}
+
+// 较大尺寸的电脑，现代计算机等
+@function vw-xl($px) {
+  @return vw($px, var.$xl);
+}
+```
+  </li>
+  <li>
+    使用 Partials 建立模块化的样式系统
+```
+├──.vscode/
+│   └── alice-scss.code-snippets
+├── src/
+│   ├── styles/
+│   │   ├── _transforms.scss
+│   │   └── _variables.scss
+│   └── 你的其他代码文件
+├── package.json
+└── tsconfig.json
+```
+  </li>
+  <li>
+    使用时，借助 @use 引入转换函数，借助 snippets 减少样板代码：
+
+    ————————————
+
+  如果你的 Partial 位于 src/styles/_transforms.scss ⬆️
+  那么你的导入代码将是：
+```scss
+// 不带命名空间的
+@use "src/styles/transform" as *;
+@use "src/styles/variables" as *;
+$md; 
+width: vw-sm(24px);
+```
+  或是：
+```scss
+// 带命名空间的
+@use "src/styles/variables";
+@use "src/styles/transform";
+variables.$md;
+width: transform.vw-sm(24px);
+```
+    
+    ————————————
+
+    针对于此转换和模块化文件，我们可以编写如下 snippets 文件：
+```json
+{
+  "Insert responsive import": {
+    "scope": "scss, sass, postcss",
+    "prefix": "usr",
+    "body": [
+      "@use \"src/styles/variables\" as *;",
+      "@use \"src/styles/transform\" as *;",
+      "$1"
+    ],
+    "description": "Insert @use case."
+  },
+  "Insert media sm": {
+    "scope": "scss, sass, postcss",
+    "prefix": "msm",
+    "body": [
+      "@media screen and (min-width: (\\$sm + 1)) {",
+      "  $1",
+      "}"
+    ],
+    "description": "Insert media query for sm size."
+  },
+  "Change px to vw": {
+    "scope": "scss, sass, postcss",
+    "prefix": "vs",
+    "body": [
+      "vw-sm($1)$2"
+    ],
+    "description": "Change px to vw."
+  }
+}
+```
+    这样，在 scss 文件，我们就可以避免大量的样板代码编写，编写以下命令并使用 IDE 联想功能（然后 Tab）
+```
+usr // ur 也可以，vscode 会智能匹配到
+msm
+vs
+```
+  </li>
+</ol>
+
+## @use vs @import
+
+1. 两种都是实现 scss 模块化引入的方式，@use 较新
+2. @use 仅引入变量、函数和混入，且仅生效于当前文件
+3. @use 支持私有成员，为所有成员创建命名空间
+4. 使用 @use ... as * 避免命名空间写法
+5. @import  官方计划弃用
+
+参考资料：
+https://sass-lang.com/documentation/at-rules/import/
+https://stackoverflow.com/questions/62757419/whats-the-difference-between-import-and-use-scss-rules
+
+## Tips: 处理软键盘弹出
+在手机浏览器上，存在输入框 focus 拉起软键盘，但是 vh 没有反馈可视适口变化的情况。遇到此情况，我们可以进行如下处理：
+1. 添加 interactive-widget=resizes-content，使得视口会被交互式组件调整大小（此时 JS 可获取缩小后的视口高度）
+```html
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0,interactive-widget=resizes-content"
+/>
+```
+2. 添加 resize、orientationchange 监听，设置 css 变量为 innerHeight / 100（使用 1 提供的内容）
+3. 添加 height: calc(var(--height, 1vh) * 100) 防止初始状态填充不满（做初态处理）
+4. Safari Mobile 弹出键盘时页面滚动，需要 blur 时 window.scrollTo 处理（处理 Safari 兼容）
+最终的组件代码：
+```tsx
+"use client";
+
+import Head from 'next/head';
+import { useEffect } from 'react';
+
+type Props = {}
+
+function Inputer({ }: Props) {
+  function setViewportHeight() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--inner-vh', `${vh}px`);
+  }
+
+  // 注：条件允许，应该把示例代码移至框架外尽早执行
+  useEffect(() => {
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+    setViewportHeight();
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
+
+  return (
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0,interactive-widget=resizes-content" />
+      </Head>
+      <main className='flex flex-col h-[calc(var(--inner-vh,1vh)*100)] bg-slate-200'>
+        {/* 你的自定义内容 */}
+      </main>
+    </>
+  );
+}
+
+export default Inputer;
+```
+
+## 附件📎
+<a href={ fileURI }>
+  代码下载：code-responsive-and-emmet.zip
+</a>
+
+和本篇文章相关的项目文件：
+```
+├──.vscode/
+│   └── alice-scss.code-snippets
+└── src/
+    ├── styles/
+    │   ├── _transforms.scss
+    │   └── _variables.scss
+    ├── components/
+    │   ├── Button/...
+    │   └── Inputer/...
+    └── app/
+         └── input/
+               └── page.tsx
+```
+如何启动项目：
+
+于根目录下，执行：
+```bash
+npm i -g pnpm
+pnpm i
+npm run dev
+```
+
+等待安装和编译完毕后，然后按照 terminal 中的提示访问本地服务即可。主要演示页面：/ 和 /input。
+
+比如我们启动后 terminal 提示在 localhost:3000 启动了本地服务，那么访问 http://localhost:3000/ 和 http://localhost:3000/input
