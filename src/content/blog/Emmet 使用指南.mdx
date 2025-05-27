@@ -1,0 +1,76 @@
+---
+title: 'Emmet 使用指南'
+description: 'Emmet 是众多 IDE 内置的一套 Web 开发者工具，深植于代码联想中，明确 Emmet 具体的语法和编写，便于我们更好地提升编码效率。'
+pubDate: '2024-08-31'
+tags: ['前端', 'HTML']
+---
+import fileURI from '@/assets/files/code-responsive-and-emmet.zip'
+
+# Emmet 使用指南
+
+## 技术点
+
+Emmet
+
+## 介绍
+
+Emmet 是众多 IDE 内置的一套 Web 开发者工具，深植于代码联想中，明确 Emmet 具体的语法和编写，便于我们更好地提升编码效率。
+
+基本语法
+使用时，我们先编写对应的标签，然后使用代码联想，按 tab 进行补全。
+| 名称 | 语法 | 示例 | 生成后 | 备注 |
+|------|------|------|--------|------|
+| 开闭标签 | `任意标签` | `ul` | ```<ul></ul>``` | |
+| 单闭合标签 | `任意标签/` | `ul/` | ```<ul />``` | |
+| 后代标签 | `>` | `ul>li` | ```<ul><li></li></ul>``` | |
+| 相邻节点标签 | `+` | `ul+form` | ```<ul></ul><form action=""></form>``` | |
+| 爬升 | `^` | `ul>li^form` | ```<ul><li></li></ul><form action=""></form>``` | |
+| 多个元素 | `任意标签*数字` | `ul>li*100` | ```<ul><li></li><li></li>...剩余98个 li</ul>``` | |
+| 组合 | `()` | `ul>li>(span+a+span)` | ```<ul><li><span></span><a href=""></a><span></span></li></ul>``` | |
+| 文本 | `{}` | `ul>li{text content}` | ```<ul><li>text content</li></ul>``` | |
+| 类 | `.` | `ul.list-none>li.text-grey-500{some text in li}` | ```<ul className="list-none"><li className="text-grey-500">some text in li</li></ul>``` | |
+| ID | `#` | `ul.list-none>li#list-el` | ```<ul className="list-none"><li id="list-el"></li></ul>``` | |
+| 属性 | `[]` | `ul>li[data-id=el]>(span+a+span)` | ```<ul><li data-id="el"><span></span><a href=""></a><span></span></li></ul>``` | |
+| 动态数字 | `$` | `ul>li[data-id=$$$@10]*10` | ```<ul><li data-id="010"></li><li data-id="011"></li><li data-id="012"></li>...剩余9个 li</ul>``` | |
+| 动态数字（指定起始） | `@` | `ul>li[data-id=$$$@10]*10` | ```<ul><li data-id="010"></li><li data-id="011"></li><li data-id="012"></li>...剩余9个 li</ul>``` | |
+| 动态数字（逆序） | `@-` | `ul>li[data-id=$$@-]*10` | ```<ul><li data-id="10"></li><li data-id="09"></li><li data-id="08"></li>...剩余9个 li</ul>``` | |
+| 动态数字（组合使用） | `$-$$@-` | `ul>li[data-id=$-$$@-10]*10` | ```<ul><li data-id="19"></li><li data-id="18"></li><li data-id="17"></li>...剩余9个 li</ul>``` | |
+
+> 注：可以思考如何快速生成多个 option 标签并填写其 value。
+
+## 常用生成
+基本上由多种类型的标签都可以通过“标签名:类型”的形式生成对应的标签代码段。 
+| 生成前 | 生成后 | 备注 |
+|------|------|------|
+| `input:s` | ```<input type="submit" value="" />``` | 再按 tab 可以到 value 输入 |
+| `input:b` | ```<input type="button" value="" />``` | |
+| `input:color` | ```<input type="color" name="" id="" />``` | |
+| `input:checkbox` | ```<input type="checkbox" name="" id="" />``` | |
+| `button:s` | ```<button type="submit"</button>``` | |
+| `button:b` | ```<input type="button" value="" />``` | |
+| `lorem` | ```Lorem ipsum dolor, sit amet consectetur adipisicing elit. Neque quasi eaque officia nisi aliquam et. Ab ea iure velit accusamus pariatur dolore tempore, illo fugiat laborum magni soluta neque maiores?``` | 用于测试文本显示效果，也可通过 code snippets 设置各语言对应的段落 |
+| `Button` | ```<Button></Button>``` | JSX 也是支持生成的 |
+| `Button/` | ```<Button />``` | |
+
+
+## 常见问题
+
+### 在 JSX/TSX 中大部分情况不希望通过 `#` 生成 id，如何处理此类情况？
+
+可以通过变通的方法，比如：`div[class=text-#c55e00]`。如果需要处理多值，那么 `div[class="text-#c55e00 color-red"]`，多个属性有 `div[class="text-#c55e00 color-red" data-id=uuid]`
+
+### 如果想要生成多个类，如何操作？
+
+`ul.listnone>li.text-grey-500<strong>.bg-red</strong>\{some-text-in-li\}
+
+
+## 扩展阅读
+
+1. Emmet： https://code.visualstudio.com/docs/editor/emmet
+2. Emmet in VSCode：https://code.visualstudio.com/docs/editor/emmet
+3. VSCode - Tips 和 Tricks：https://code.visualstudio.com/docs/getstarted/tips-and-tricks
+4. VSCode 的帮助 -> 编辑器操场 中可以练习包含 Emmet 在内的快捷操作。
+
+## 相关演示代码
+
+<a href={fileURI} download="code-responsive-and-emmet.zip" target="_blank" >code-responsive-and-emmet.zip</a>

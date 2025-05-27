@@ -21,7 +21,7 @@ const DIR = import.meta.dirname;
 export default defineConfig({
   site: 'https://nazoya.github.io/',
   vite: {
-    assetsInclude: '**/pagefind.js',
+    assetsInclude: ['**/pagefind.js', '**/*.zip'],
     build: {
       rollupOptions: {
         external: ['/pagefind/pagefind.js'],
