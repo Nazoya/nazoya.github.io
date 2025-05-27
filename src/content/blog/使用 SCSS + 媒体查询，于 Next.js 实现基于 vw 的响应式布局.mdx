@@ -1,5 +1,5 @@
 ---
-title: 一种响应式布局实践分享
+title: 使用 SCSS + 媒体查询，于 Next.js 实现基于 vw 的响应式布局
 description: 一种基于 SCSS， 媒体查询 media query + Snippets，适用于中小型项目的响应式布局实践分享
 pubDate: 2024-08-31
 ---
@@ -285,7 +285,15 @@ function Inputer({ }: Props) {
 export default Inputer;
 ```
 
-## 附件📎
+## 一些移动端开发时的注意事项：
+
+* 像素 pdr 为 3 的设备里 1px 转换的 vw 线条显示不全
+* 使用 vw 显示 border-radius 偏差可能较大，需要额外注意
+* 部分较老机型不支持 aspect-ratio 和 flex 里的 gap
+* 使用 vw 一般只能应对瘦长设备
+* 只推荐比较暴力的样式转换（无响应式具体方案，仅区分移动端和 PC 端）时，对移动端使用
+
+## 附件
 <a href={ fileURI }>
   代码下载：code-responsive-and-emmet.zip
 </a>
