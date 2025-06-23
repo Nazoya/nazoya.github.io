@@ -1,0 +1,1564 @@
+---
+title: "Phaser.js 基础入门指南"
+description: "Phaser.js 是一个开源的 HTML5 游戏框架，包含图形渲染、音频控制、粒子特效、动画系统、资产管理、场景控制等多个模块。Phaser 是一个开源 HTML5 游戏框架，包含图形渲染、音频控制、粒子特效、动画系统、资产管理、场景控制等多个模块。 
+利用 Phaser，可以开发 Discord、SnapChat、Facebook、微信、Playable Ads、Telegram、Twitch 等诸多平台上的游戏。更有甚者，可以通过一些特殊的技术手段将 Phaser 开发的游戏转换为原生移动或者桌面应用游戏（参考 Egret 白鹭，数年前就已经可以使用 Typescript 开发跨平台的游戏）。
+不同于 Pixi.js 这样的纯图形渲染库（渲染引擎），Phaser.js 提供了一整套可以用于开发真实游戏的生态。"
+pubDate: 2025-05-30
+---
+import { Image, Video } from 'astro:assets';
+import image01 from '@/assets/images/phaser-basic-01.png';
+import image02 from '@/assets/images/phaser-basic-02.png';
+import image03 from '@/assets/images/phaser-basic-03.png';
+import image04 from '@/assets/images/phaser-basic-04.png';
+import image05 from '@/assets/images/phaser-basic-05.png';
+import image06 from '@/assets/images/phaser-basic-06.png';
+import image07 from '@/assets/images/phaser-basic-07.png';
+import image08 from '@/assets/images/phaser-basic-08.png';
+import video01 from '@/assets/video/phaser-basic-01.mp4';
+
+## Phaser.js 是什么
+
+https://phaser.io/
+
+Phaser 是一个开源 HTML5 游戏框架，包含图形渲染、音频控制、粒子特效、动画系统、资产管理、场景控制等多个模块。 
+利用 Phaser，可以开发 Discord、SnapChat、Facebook、微信、Playable Ads、Telegram、Twitch 等诸多平台上的游戏。更有甚者，可以通过一些特殊的技术手段将 Phaser 开发的游戏转换为原生移动或者桌面应用游戏（参考 Egret 白鹭，数年前就已经可以使用 Typescript 开发跨平台的游戏）。
+不同于 Pixi.js 这样的纯图形渲染库（渲染引擎），Phaser.js 提供了一整套可以用于开发真实游戏的生态。
+为什么要用 Phaser
+
+既然 Canvas 有那么多渲染库，为什么我们要使用 Phaser 呢？
+
+Phaser 是一个游戏框架
+- 提供了一站式的游戏开发解决方案
+- 有较为完善的文档支持
+- 不需要考虑各个模块之间的结合控制
+
+但伴随着其强大特性的同时，其具有较为*陡峭的学习曲线*。
+
+什么情况下不应该用 Phaser：
+- 简单的交互
+- 不具备丰富的特效
+- 不能使用 Canvas 或者 WebGL 的情况下
+- 大部分动画都是 webp
+
+## 基础知识
+
+### 纹理（Texture）
+
+https://docs.phaser.io/phaser/concepts/textures#textures
+
+在 Phaser 中，我们一般称定义了 GameObject 表面细节的图片为纹理。
+无论是加载图片、精灵图表（Spritesheet）、纹理图集（Texture Atlas）、多文件纹理图集（Multi File Texture Atlas），最终 Phaser 都会将其转化为纹理存放到全局的缓存中，按照相关的配置项将其划分为单个或者数个帧（Frame），以供未来使用。
+可以通过纹理管理器（Texture Manager）访问已经创建的纹理。默认纹理不存在或者未加载完毕时使用 __MISSING 纹理。
+
+```js
+scene.textures.get('key')
+```
+
+### 精灵图（Sprite）
+
+> *精灵图*（英语：Sprite），又被称为*拼合图*。在[计算机图形学](https://zh.wikipedia.org/wiki/%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9B%BE%E5%BD%A2%E5%AD%A6)中，当一张[二维](https://zh.wikipedia.org/wiki/%E4%BA%8C%E7%B6%AD)[图像](https://zh.wikipedia.org/wiki/%E5%9B%BE%E5%83%8F)集成进场景中，成为整个显示图像的一部分时，这张图就称为精灵图。                                                                                               ——维基百科
+
+因为雪碧的英文原文为 Sprite（精灵），我们平常也称精灵图其为雪碧图。一般我们说使用精灵图，多数场景下指的是另一个概念，Spritesheet，也就是精灵图表，将多个精灵图复合为一整张完整的图片，然后取其中的一部分作为精灵图复合到页面背景之上。
+比如说，我们网站中使用的图标，在以前网络带宽和流量普遍较小的时候，都会使用整张精灵图，以稍慢的加载速度防止多张细小图片闪烁时的加载空白和总体上的额外流量消耗（额外的文件头和请求头部）。
+此外，现代软件开发中还有 SVG Sprite 和 Audio Sprite 的概念，顾名思义，也是将 SVG 和 Audio 作为图元复合到背景图形/音频之中。
+
+### 精灵图表（Spritesheet）
+
+<Image src={image01} alt="精灵图示例" />
+
+上图是精灵宝可梦中某一世代使用的精灵图表（Spritesheet）。在游戏开发中，更重视游戏过程中的游戏体验，允许较长的加载时间，不要出现纹理加载空白的情况，所以在 2D 游戏开发中，Spritesheet 得到了非常广泛的使用。
+通过加载整张图片到内存中，然后通过额外的位置信息控制对应要显示的 Sprite，可以以立刻无延迟地将 Sprite 切换到新的内容上。
+在 Web 开发中，另一个非常常见的用例是站点图标，使用整张的 Spritesheet（位图或者是矢量图），快速地加载图标。举例来说，mapbox 开发中经常会使用一张 png 作为地图中所有图标的整合，之后利用 json 加载图标信息，达到快速显示图标的效果。
+
+### 精灵动画（Spritesheet Animation）
+
+利用 Spritesheet，我们也可以将一张 Sprite 的连续帧放到其中，利用 Spritesheet 无延迟切换内容的特性，简单而快速地实现位图动画。
+比如在俯视角 2D 游戏中，任务有四个面朝向，那么只需要绘制四个方向的行走动画，提供一张 Spritesheet，便可利用游戏引擎完成其全局行走动画的播放。比如下面每一部分 Sprite 二维矩阵中的 [0, 0] [0, 2] [3, 1] 为向上走的动画，游戏引擎只要在触发 Up 动作时，以一定的速度持续播放这 3 帧即可完成动画。
+
+<Image src={image02} alt="精灵图示例" />
+
+一般来说，一个主要操作人物的所有动画帧（Frame）可能如下图罗列所示：
+
+<Image src={image03} alt="动画帧示例" />
+
+注意，在 Phaser 中，不认为其是一个标准的 Spritesheet，因为其尺寸不是统一的，可能更近似于 Atlas（纹理图集）。
+相对于动图 webp，其优点在于整个文件较小，对于加载速度有优势。缺点在于必须依赖于 Javasript 或者 CSS 的预编程，如果实现动态的资源配置具有一定的门槛，相较于 webp 需要更多编程上的调试。
+通过结合 Spritesheet，我们可以以较好的用户体验和较小的文件体积实现丰富的动效。
+在 Phaser.js 中，定义 Spritesheet 的读取仅支持一张图固定尺寸获取帧。一般 Spritesheet 会使用 Aseprite 这类工具进行制作并导出。
+
+### 纹理图集（Texture Atlas）
+
+纹理图集则可以是多个图片的整合。通过这种方式，可以最大程度地减少文件的大小。其中每个子图像通过纹理坐标定义。
+
+<Image src={image04} alt="Atlas" />
+
+### 贴图（Map）
+
+包含了到游戏物体定点映射信息和纹理信息的集合，我们称之为贴图。相关的概念有<a href="https://docs.unity3d.com/cn/2021.1/Manual/StandardShaderMaterialParameterNormalMap.html#:~:text=%E6%B3%95%E7%BA%BF%E8%B4%B4%E5%9B%BE(Normal%20Map,%E4%B8%BA%E5%87%A0%E4%BD%95%E4%BD%93%EF%BC%8C%E5%A6%82%E4%B8%8B%E6%89%80%E7%A4%BA%E3%80%82">法线贴图</a>（Normal Map），一种凹凸贴图（Bump Map），用于将垂直于表面的信息附着在模型或物体上，可以表现模型表面的凹痕、凸起、划痕等。
+
+<Image src={image05} alt="贴图" />
+
+
+### 材质（Material）
+
+常见于 3D 游戏引擎和建模领域，包含了额外光照信息等场景复合信息的集合，称之为材质。在 Unity 中，相关的常见名字为材质球。
+
+### 瓦片地图/瓷砖地图（Tiled Map）
+
+在 2D 游戏的世界中，地图一般通过瓦片地图实现。比如说像这样的一张地图：
+
+<Image src={image06} alt="瓦片地图" />
+
+其背后可能是这样的一张图片，这种图片称作为瓦片图集（Tileset），是合成瓦片地图的核心素材：
+
+<Image src={image07} alt="瓦片图集" />
+
+一般包含了瓦片使用的位置信息的对象或数组，我们会称其为瓦片地图，比如：
+
+```json
+[
+  [1, 1, 93, 93, 93, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 93, 93, 93, 1, 1, 1, 1, 3, 1, 1, 1],
+  [1, 5, 93, 93, 93, 5, 1, 5, 6, 7, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 13, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 15, 1, 1],
+  [35, 36, 37, 1, 1, 1, 1, 1, 15, 15, 15, 1, 1],
+  [39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39]
+]
+```
+
+如果将瓦片地图按 16x16 像素尺寸拆分，每一张图给予一个从 0 开始的序号，上面的每个编号则为对应的瓦片序号。
+注意，游戏引擎中的 tilemap 对象和瓦片地图的定义不一定相同，在 Phaser 中更像是一张 Tilemap 及其相关资源的管理器。
+
+### 移动端上的 Web 音视频播放
+
+在移动端 Web 中，一般来讲可被听见的音视频播放需要用户至少触发一次规定的交互行为，比如说点击页面元素，或者是做出特定手势。（静音的音视频一般来说也是可以播放的）
+直到监测到用户交互行为后，浏览器（Webview）才会允许代码获取媒体播放权限，以非静音的音量播放某一段音频。更有甚者，iOS 在 12 版本每次播放音频都必须由用户触发，即使是同一份音频，也是如此。
+注意，无论是 Web Audio 和 HTMLAudioElement 都是具有同样的权限限制。
+
+### 如何使用 Phaser.js 
+
+#### 安装和简单配置
+通过包管理工具进行安装，这样可以和现代化的 Web 工具一同使用，从而在 React 或者 Vue 组件中加载：
+```bash
+pnpm install phaser
+```
+
+或者直接引入 script 进行安装
+https://phaser.io/tutorials/getting-started-phaser3/part5
+```html
+<html>
+    <head>
+        <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    </head>
+    <body>...</body>
+</html>
+```
+
+如果你通过包管理工具进行安装，需要在组件挂载后进行加载，并且持久化记忆以兼容热更新：
+
+```typescript
+import { useEffect, useRef } from 'react'
+import * as Phaser from 'phaser'
+// 具体创建的场景，这里暂时先当成伪代码
+import MainScene from './scene/main'
+
+function App() {
+  const gameRef = useRef<Phaser.Game | null>(null)
+  useEffect(() => {
+    // 兼容热更新，防止初始化错误
+    if (gameRef.current) {
+      return () => {}
+    }
+
+    const game = new Phaser.Game({
+      width: 800,
+      height: 600,
+      type: Phaser.AUTO,
+      scale: {
+        width: 800,
+        height: 600,
+        mode: Phaser.Scale.ScaleModes.RESIZE, 
+      },
+      scene: [MainScene],
+      antialias: false,
+    })
+    gameRef.current = game
+  
+    return () => {
+      // destroy(true) 指定调用时销毁自动创建的 canvas
+      gameRef.current?.destroy(true)
+      gameRef.current = null
+    }
+  }, [])
+
+  return (
+    null
+  )
+}
+
+export default App
+```
+
+### 常用配置属性
+
+如果查看完整的配置文档，请参考：https://docs.phaser.io/api-documentation/typedef/types-core
+下面将带过一些常用的 Game Config 配置参数：
+
+#### 创建时的元素和上下文
+
+```typescript
+{
+    parent: HTMLElement | string;
+    canvas: HTMLCanvasElement;
+    canvasStyle: string;
+    context: CanvasRenderingContext2D;
+}
+```
+
+- parent 参数指定 canvas 元素的父容器，可选
+- canvas 参数指定后将复用对应的 canvas 元素，配置后忽略 parent 参数 ，可选
+- canvasStyle 附加在 canvas 上的 style 样式
+- context 使用已有的 canvas 上下文 
+
+#### 上下文类型
+
+通过 type 设置，具有四种参数：
+
+- Phaser.AUTO
+- Phaser.CANVAS
+- Phaser.WEBGL
+- Phaser.HEADLESS
+
+一般来说，使用 Phaser.AUTO 即可，Phaser 将在不支持 WebGL 时自动回退到 Canvas，但为了更大的兼容性，在移动端比较推荐使用 Phaser.CANVAS，避免某些 WebGL 特性不支持或是占用内存较大导致 contextlost，无法恢复（目前 Phaser 3.x 不支持 contextlost 恢复）。
+Phaser.HEADLESS 一般用于测试等场景，即不进行可视的渲染。
+
+#### 场景缩放（Scale）
+
+- Phaser.Scale.ScaleModes.NONE
+  顾名思义，Phaser 将不会缩放，直接使用配置中给定的尺寸。如果通过 CSS 或者 Javascript 调整了 canvas 元素的大小，那么需要调用 Phaser 内部的 Scale Managers 的 resize 方法，才能使得 Phaser 的交互监听模块正常工作。
+- Phaser.Scale.ScaleModes.WIDTH_CONTROLS_HEIGHT
+  高度根据宽度自动调整，等比缩放
+- Phaser.Scale.ScaleModes.HEIGHT_CONTROLS_WIDTH
+  宽度将根据高度自动等比缩放。
+- Phaser.Scale.ScaleModes.ENVELOP
+  同时保持长宽比，尽量使尺寸覆盖整个目标区域。可能会比目标大很多。
+- Phaser.Scale.ScaleModes.FIT
+  同时保持纵横比，尽量使尺寸被整个目标区域包含。可能会有一些空间不被覆盖。
+- Phaser.Scale.ScaleModes.RESIZE
+  不保持纵横比，调整 Canvas 的大小以适应所有可用的父空间，当未完全显示时，不会对应缩放。
+- Phaser.Scale.ScaleModes.EXPAND
+  像 RESIZE 模式一样，不保持纵横比，调整 Canvas 的可见区域大小以占满所有可用的父空间，同时类似于 FIT 模式一样，缩小时缩放画布大小以使得定义的游戏区域位于视口之中。
+一般来说，FIT 应该可以解决大部分的使用场景。
+注意，由于历史遗留原因，scale 中也可以配置 width 和 height，和直接在 config 中配置的效果相同。
+
+
+#### 交互输入
+
+```typescript
+{
+    input?: {
+        windowEvents: boolean;
+        touch: boolean | Phaser.Types.Core.TouchInputConfig;
+        mouse: boolean | Phaser.Types.Core.MouseInputConfig;
+        // ...
+    } | boolean
+}
+```
+
+- windowEvents 事件是否在 window 全局进行监听，如果需要协调 Phaser 和页面其他元素的交互，那么这个属性最好关闭。比如说，添加了移动端的下拉组件，会与此配置冲突
+- touch 开启时，可能存在点击事件监听较为灵敏（表现为 iOS 移动到其他地方，抬起触摸的位置仍然触发事件，和普通的 click 事件表现有差异的问题，可根据需要关闭，不影响点击事件的触发
+- mouse 默认开启（true）时，将阻止 mousedown、mouseup、mousemove 和 wheel 事件的默认行为，需要格外注意
+
+#### 音频控制
+
+```typescript
+{
+    audio?: {
+        disableWebAudio?: boolean;
+        context?: AudioContext;
+        noAudio?: boolean;
+    }
+}
+```
+
+- disableWebAudio 是否禁用 Web Audio，如果禁用则会使用  HTML5 Audio
+- context 可以提供以复用已有的 AudioContext
+- noAudio 关闭所有的音频输出
+
+#### DOM 相关功能*
+
+如果要实现动图资源或者 React 组件的接入，一般会用到 Phaser 内置的 DOM 渲染功能，对应地，此处的配置必须要开启和配置。
+
+``` typescript
+{
+    dom?: {
+        createContainer?: boolean;
+        behindCanvas?: boolean;
+        pointerEvents?: string;
+    }
+}
+```
+
+- createContainer 是否创建一个 DOM 容器，用于容纳 Phaser 中创建的 DOM 元素，如果要使用 Phaser 的 DOM 元素，需要开启这个配置，同时，必须要指定 parent 配置
+- behindCanvas 创建的 DOM 容器位置是否在 canvas 后面
+- pointerEvents 附加在 DOM 的默认 pointerEvents 属性，设置指针相应的属性
+
+#### 资源加载配置
+
+```typescript
+{
+    loader?: {
+        baseURL?: string;
+        maxRetries?: number;
+        maxParallelDownloads?: number;
+        crossOrigin?: "anonymous" | "use-credentials";
+        timeout?: string;
+        withCredentials?: boolean;
+        imageLoadType?: "XHR" | "HTMLImageElement";
+    }
+}
+```
+
+- baseURL 用于 loader 请求地址拼接的公共前缀
+- maxRetries 请求最大重试次数
+- maxParallelDownloads 最大并行下载数
+- crossOrigin 是否跨域，设置属性同 https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/crossOrigin
+- timeout 超时时间 
+- withCredentials 同 XHR 的 withCredentials 值
+- imageLoadType 使用何种方式加载图片资源，默认为 XHR，除了加载方式外，这二者的中间缓存的产物有所不同
+
+#### 默认占位图
+
+```typescript
+{
+    images: {
+        default: string | undefined;
+        missing: string | undefined;
+        white: string | undefined
+    }
+}
+```
+
+- default 作为默认纹理的图片，未初始化完毕时使用，应该是一个 base64，如果是在 preload 中加载了资源，一般不会见到
+- missing 作为纹理加载失败或不存在时的图片，应是一个 base64
+- white 作为 white 纹理使用的图片，应是一个 base64，默认是一个 4x4 的白色图片
+
+#### 如何使用场景
+
+##### 创建和加载场景（Scene）
+
+所有场景（Scene）的创建方式：https://docs.phaser.io/phaser/concepts/scenes#scene-creation
+Phaser 以 Scene（场景）作为将游戏划分为多个逻辑部分，比如说开场画面、结算画面、甚至菜单都可以是一个独立的场景。
+举个例子，比如说宝可梦游戏中的城镇、城镇中的室内，甚至通过关卡到达的新的城镇，都是不同的区分开来的场景。
+在 Phaser 中，场景还可以同时进行渲染，甚至将 UI 作为一整个特殊的高优先级渲染的场景。
+一般地，我们借助类的继承完成场景的创建：
+
+```typescript
+class Boot extends Phaser.Scene
+{
+    ...
+}
+```
+
+然后在 Game 实例中去配置加载 Scene， Phaser 将会自动地为我们实例化场景：
+
+```typescript
+new Phaser.Game({
+    scene: [Boot],
+})
+```
+
+其中，场景具有多个生命周期钩子让我们去做不同的事情：
+
+```typescript
+class MyScene extends Phaser.Scene {
+  constructor(config) {
+    super(config);
+  }
+
+  init(data) {}
+  
+  preload() {}
+  
+  create(data) {}
+  
+  update(time, delta) {}
+}
+```
+
+- constructor 构造函数，config 可以为 string 或者 Phaser.Types.Scenes.SettingsConfig，一般至少指定 key，用于开发中标志场景以便进行切换和操作，但在 Phaser 中，不应将初始化场景变量放到这里
+- init 初始化，设置和派生数据，此处也用于重新初始化/重置场景的状态
+- preload 加载资源
+- create 用于创建游戏对象
+- update 用于更新场景中的内容 
+- 其中，data 参数为 game.scene.add 或者 game.scene.start 函数调用时传递的值 
+
+下面是官方文档中的一张 Scene 的生命周期流程图，可以用于辅助理解：
+https://docs.phaser.io/phaser/concepts/scenes#flowchart-scene-life-cycle
+
+<Image src={image08} alt="Scene 生命周期流程图" />
+
+
+其中，
+- Run： 更新并渲染，游戏正常运行的状态
+- Pause： 渲染但不更新，游戏暂停，用于处理模态窗口
+- Sleep：不渲染也不更新，可以用于切换处理其他场景，比如覆盖画面的菜单等
+- Stop：关闭游戏
+对应的操作对是： pause-resume、sleep-wake 和 shutdown-start。
+
+#### 多个场景之间之间的交互
+
+在 Phaser 中，一般会利用两个前置的空场景表现资源加载的过程。
+比如说，我们一开始可以有一个加载启动图像的场景：
+
+```typescript
+class Boot extends Scene
+{
+    constructor() {
+        super('Boot');
+    }
+
+    preload() {
+        this.load.image('background', 'assets/bg.png');
+    }
+
+    create() {
+        this.scene.start('Preloader');
+    }
+    
+    update() {
+    }
+}
+```
+
+然后在下一个场景中，利用加载好的启动图像作为临时显示，加载其他资源：
+
+```typescript
+class Preloader extends Scene
+{
+    constructor() {
+        super('Preloader');
+    }
+
+    init()
+    {
+        //  我们已经在上一个启动场景中加载了图片，可以直接在这里显示
+        this.add.image(512, 384, 'background');
+        // 进度条边框
+        this.add.rectangle(512, 384, 468, 32).setStrokeStyle(1, 0xffffff);
+        //  进度条
+        const bar = this.add.rectangle(512 - 230, 384, 4, 28, 0xffffff);
+        //  使用 LoaderPlugin 发出的 progress 事件来更新进度条
+        this.load.on('progress', (progress: number) => {
+            //  更新进度条（我们这里的进度条为 464px 宽，所以加载到 100% 也应该是 464px）
+            bar.width = 4 + (460 * progress);
+        });
+    }
+
+    preload ()
+    {
+        //  为整个游戏加载资源
+        this.load.setPath('assets');
+        this.load.image('logo', 'logo.png');
+        this.load.image('star', 'star.png');
+    }
+
+    create ()
+    {
+        //  当所有的资产都被加载后，此时很适合创建剩余游戏部分中使用到的全局对象
+        // 比如说，你可以定义全局的动画，然后在其他场景中使用它们
+
+        //  移动到主菜单场景。你也可以使用 Scene 过渡动画来进行切换，比如说摄像机的淡出。
+        this.scene.start('MainMenu');
+    }
+}
+```
+
+这之后，可以到我们主要内容的场景了：
+
+```typescript
+import { GameObjects, Scene } from 'phaser';
+
+import { EventBus } from '../EventBus';
+
+export class MainMenu extends Scene {
+    constructor () {
+        super('MainMenu');
+    }
+
+    create () {
+        EventBus.emit('current-scene-ready', this);
+    }
+    
+    // ......
+}
+```
+
+有两个值得注意的地方：
+1. 官方推荐使用订阅发布模式来实现不同场景之间的通信。
+  具体 EventBus 文件内容为：
+
+```typescript
+import { Events } from 'phaser';
+
+export const EventBus = new Events.EventEmitter();
+```
+
+2. scene 实例的 scene 属性其实为 Scene Manager，可以用于查看和操作各个场景，比如：
+
+```typescript
+create() {
+    this.scene.start('a');
+    this.scene.sleep('a');
+    this.scene.wake('d');
+    this.scene.stop('b');
+    // ......
+}
+```
+
+对于场景的操作有部分方法为双重方法，也会同时操作发起管理的场景，比如 start 和 switch。
+
+https://docs.phaser.io/phaser/concepts/scenes#changing-scenes
+
+还有一点要注意的是，在上一个使用特定字符串作为 key 的场景载入后，除非销毁对应场景，否则无法使用相同的 key 替换场景。可以这样处理：
+
+```typescript
+const { manager } = this.scene;
+
+this.events.once('destroy', () => {
+  manager.add('key', newScene);
+}
+
+this.scene.remove();
+```
+
+### 资产加载
+
+https://docs.phaser.io/phaser/concepts/loader
+
+在 Phaser 中，所有将要用于内部对象处理的资源都被称之为 Assets，也就是资产。
+每个场景管理了一个加载队列，当调用 Scene 的 load 上的方法，将会把对应的资源类型添加到队列中。
+一般地，资产应当每个都使用唯一的 key 作为标志。同时，应当在场景（Scene）中的 preload 生命周期钩子中使用其自身的 Loader 实例（.load）加载资源，此时 Phaser 将会自动地调用资源加载相关的函数。
+
+```typescript
+class Preloader extends Scene {
+    // ...
+    preload() {
+        this.load.image('logo', 'logo.png');
+    }
+}
+```
+
+在多场景的游戏中，总是会在 Boot 和 Preloader 两个前置的场景中加载公共的资产，然后启动其他场景，其他场景自己管理独占的资产。
+如果在 preload 之外进行加载，那么需要加载的资产将会在加载队列中排队，而不主动开始加载，需要主动调用 load.start() 进行资源的加载。此时，*需要在事件监听中等到资产加载完毕后，以回调的形式使用资产*。
+
+```typescript
+scene.load.on('complete', handleComplete)
+scene.load.off('complete', handleComplete)
+scene.load.once('complete', handleComplete)
+scene.load.on('loaderror', handleError)
+scene.load.off('complete', handleComplete)
+```
+
+资源的加载方式受到上文中提到的 Game 配置中 `loader` 配置项的影响。
+
+此外，也可以通过 Scene 构造函数中的 config 加载小型资产，又称为（Scene Payload 加载）。
+
+https://phaser.io/examples/v3.85.0/scenes/view/scene-files-payload
+
+```typescript
+class Example extends Phaser.Scene{
+    constructor (){
+        super({
+            pack: {
+                files: [
+                { type: 'image', key: 'sonic', url: 'assets/sprites/sonic_havok_sanity.png' }
+                ]
+            }
+        });
+    }
+}
+```
+
+常用到的资源类型有以下几种，以下 this 都引用了 Scene 的实例：
+
+#### Image 图片类**
+
+1. 普通图片加载*（常用）
+```typescript
+this.load.image(key, url);
+// this.load.image(key, url, xhrSettings);
+```
+  - url：  纹理的资源定位符（地址），或是base64 字符串形式的资源标志符 
+
+2. 图片及其法线贴图
+```typescript
+this.load.image(key, [url, normalMapUrl]);
+// this.load.image(key, [url, normalMapUrl], xhrSettings);
+```
+  - url ： 纹理的 url 或 Uri 的 base64 字符串。
+  - normalMapUrl ： 法线贴图的 URL。
+
+3. SVG
+```typescript
+this.load.svg(key, url);
+// this.load.svg(key, url, svgConfig);
+// this.load.svg(key, url, svgConfig, xhrSettings);
+  - svgConfig : {width, height}，或是缩放倍率 {scale}
+```
+
+4. HTML 纹理（Html texture）：
+
+```typescript
+this.load.htmlTexture(key, url, width, height);
+// this.load.htmlTexture(key, url, width, height, xhrSettings);
+```
+
+#### Spritesheet**
+*常用
+
+```typescript
+this.load.spritesheet(key, url, {// frameWidth: frameWidth,// frameHeight: frameHeight,// startFrame: startFrame,// endFrame: endFrame,// margin: margin,// spacing: spacing
+});
+// this.load.spritesheet(key, url, frameConfig, xhrSettings);
+```
+
+#### Audio**
+*常用
+
+```typescript
+this.load.audio(key, urls);
+// this.load.audio(key, urls, {instances: 1}, xhrSettings);
+```
+
+添加完成后，可以通过调用场景的 sound 对象上的方法进行播放：
+
+```typescript
+this.sound.play(
+    key,
+    //{ loop: true, volume: 0.5 }
+)
+```
+
+#### Texture Atlas（纹理图集）
+```typescript
+this.load.atlas(key, textureURL, atlasURL);
+// this.load.atlas(key, textureURL, atlasURL, textureXhrSettings, atlasXhrSettings);
+```
+
+#### Multi file texture atlas（多文件纹理图集）
+```typescript
+this.load.multiatlas(key, atlasURL);
+// this.load.multiatlas(key, atlasURL, path, baseURL, atlasXhrSettings);
+```
+
+#### 游戏对象（Game Objects）*
+
+在 Phaser 中，所有场景中绘制的图形对象都继承自 Phaser.GameObejcts.GameObject，可以从 Phaser.GameObejcts 中拿到所有相关的类。
+*默认地，所有 Game Object 的原点为其中心位置。也就意味着，如果指定了坐标，那么将以中心对齐的方式添加到场景之中。*
+
+同时，所有的放大（Scale）、反转（Flip）都是相对其中心位置的，无法进行修改。
+
+Phaser 将 GameObject 中的各个功能拆分的模块称之为组件（Component），可以在这里找到详细的使用方法：
+https://docs.phaser.io/phaser/concepts/gameobjects/components
+
+#### 常用的属性/方法
+
+##### 透明度组件
+
+https://docs.phaser.io/phaser/concepts/gameobjects/components#alpha-component
+
+```typescript
+const alpha = player.alpha;
+player.setAlpha(alpha);
+player.alpha = alpha;
+player.clearAlpha();
+```
+
+##### 尺寸组件
+https://docs.phaser.io/phaser/concepts/gameobjects/components#size-component
+
+###### Size
+
+这个尺寸为 Game Object 在游戏世界中的真实大小（缩放前），如果是 Sprite 则是默认是加载的纹理大小，Container 默认为 0 无大小。
+
+```typescript
+const width = player.width;
+const height = player.height;
+player.setSize(width, height);
+player.width = 128;
+player.height = 128;
+```
+
+###### Display Size
+
+GameObject 实际的显示大小，可以通过 displaySize 或者 scale 进行调整，二者是等效的：
+
+```typescript
+const width = player.displayWidth;
+const height = player.displayHeight;
+player.setDisplaySize(width, height);
+player.displayWidth = 128;
+player.displayHeight = 128;
+const scaleX = player.scaleX;
+const scaleY = player.scaleY;
+player.setScale(x, y);
+player.scaleX = x;
+player.scaleY = y;
+player.scale = 2;
+```
+
+##### 位置组件
+
+```typescript
+var x = gameObject.x;
+var y = gameObject.y;
+gameObject.x = 0;
+gameObject.y = 0;
+gameObject.setPosition(x,y);
+gameObject.setX(x);
+gameObject.setY(y);
+// 在给定区域创建挑选一个随机位置设置
+gameObject.setRandomPosition(x, y, width, height);
+// gameObject.setRandomPosition(); // x=0, y=0, width=game.width, height=game.height
+```
+
+#### 原点组件
+
+普通设置原点，默认添加的所有 GameObject 都是相对于 0.5,0.5 原点位置对齐的。注意，缩放无法修改相对的原点，一般只有位置受原点组件影响。
+原点的值介于 0 和 1 之间，包含上下界。
+
+```typescript
+const originX = player.originX;
+const originY = player.originY;
+player.setOrigin(x, y);
+player.originX = 0.5;
+player.originY = 0.5;
+```
+
+相对于现实尺寸设置原点：
+
+```typescript
+player.setDisplayOrigin(x, y);
+player.displayOriginX = 256;
+player.displayOriginY = 128;
+```
+
+#### 状态/标志管理方法
+
+```typescript
+sprite.state = 'ALIVE';
+sprite.setState('ALIVE');
+sprite.name = 'player';
+sprite.setName('player');
+```
+
+#### 覆盖更新方法
+每个 Scene 管理一个 Update List，并将会在渲染前调用内部 Game Object 的 preUpdate，自动更新状态。
+部分 Game Object 的子类是不自动添加到其中的，比如 Image。
+如果覆盖或者继承了需要额外更新的 GameObject，可以通过以下方法添加到场景的 Update List 中：
+
+```typescript
+sprite.addToUpdateList();
+```
+
+一个完整的实例：
+
+```typescript
+class Bullet extends Phaser.GameObjects.Image
+{
+    constructor (scene, x, y)
+    {
+        super(scene, x, y, 'bullet');
+
+        this.addToUpdateList();
+    }
+
+    // 
+    preUpdate (time, delta)
+    {
+        this.x += 10;
+
+        if (this.x > 800)
+        {
+            this.setActive(false);
+            this.setVisible(false);
+        }
+    }
+}
+```
+
+其中，通过这个方法可以控制添加在 Update List 中的 Game Object 是否更新：
+
+```typescript
+sprite.setActive(true)
+sprite.setActive(false)
+sprite.active = true
+sprite.active = false
+```
+
+#### 创建方式
+
+有大概三种方法来创建 Game Object。
+
+##### Game Object Factories 游戏对象工厂
+
+一般地，我们通过 Game Object Factories 游戏对象工厂在 create 函数中创建：
+
+```typescript
+class MainScene extends Phaser.Scene {
+  heroine!: Phaser.GameObjects.Sprite
+  constructor() {
+    super({ key: 'MainScene' })
+  }
+
+  preload() {
+    this.load.spritesheet('heroine', heroineSprite, {
+      frameWidth: 30,
+      frameHeight: 30,
+      margin: 0,
+      spacing: 2,
+    })
+  }
+
+  create() {
+    // 创建角色
+    const sprite = this.add.sprite(400, 300, 'heroine')
+    this.heroine = sprite
+  }
+}
+```
+
+这种方法里，实际的创建是由每个子类自己负责的。当然，也可以去主动进行工厂函数的注册：
+
+```typescript
+GameObjectFactory.register('sprite', function (x, y, texture, frame)
+{
+    return this.displayList.add(new Sprite(this.scene, x, y, texture, frame));
+});
+```
+
+可以通过如下语句进行删除：
+
+```typescript
+Phaser.GameObjects.GameObjectFactory.remove('sprite');
+```
+
+如果自己定义了 GameObject 的子类，同样可以在 Scene 的 init 方法中进行注册：
+
+1. 编写 Sprite 子类
+
+```typescript
+class Bomb extends Phaser.GameObjects.Sprite
+{
+    constructor (scene, x, y)
+    {
+        super(scene, x, y, 'bomb');
+
+        this.setScale(0.5);
+    }
+
+    preUpdate (time, delta)
+    {
+        super.preUpdate(time, delta);
+
+        this.rotation += 0.01;
+    }
+}
+```
+
+2. 然后，在场景使用前的 init 函数中注册
+
+```typescript
+class Example extends Phaser.Scene
+{
+    init ()
+    {
+        Phaser.GameObjects.GameObjectFactory.register('bomb', function (x, y)
+        {
+            return this.displayList.add(new Bomb(this.scene, x, y));
+        });
+    }
+}
+```
+
+##### Game Object Creator 游戏对象创建器
+
+这种创建方法最大的优势是采用了统一的配置，非常方便，甚至可以通过一份 JSON 轻松实现创建大量不同的 GameObject，无需担心其内部的实现细节。
+使用方法如下：
+
+```typescript
+const sprite = scene.make.sprite({
+    x: 400,
+    y: 300,
+    key: 'playerAtlas',
+    frame: 'idle'
+    // 是否添加到 DisplayList
+    // add: true,
+});
+```
+
+同样的，每个类都负责其对应的 Creator 函数。
+此外，创建器支持多种高级属性创建方式：
+
+```typescript
+const sprite = this.make.sprite({
+    // 随机值
+    x: [ 400, 500, 600 ]
+    
+    // 区间随机整数，包括上下界
+    // x: { randInt: [ 100, 600 ]}
+    
+    // 区间随机浮点数，包括上下界
+    // x: { randFloat: [ 100, 600 ]
+    
+    // 回调函数
+    //x: function(key) {
+    //    return Math.random() * 800;
+    //}
+});
+```
+
+##### 手动创建
+
+```typescript
+const sprite = new Phaser.GameObjects.Sprite(scene, x, y, key);
+
+sprite.addToDisplayList();
+// 或者……
+// scene.add.existing(sprite)
+// scene.children.add(sprite)
+```
+这种方法在主动创建 GameObject 的子类时比较有用。但注意，需要手动添加到 DisplayList，否则不予显示。
+
+
+#### 游戏对象显示列表（Display List ）
+
+我们在上个章节里提到了 Phaser 场景中的 [`Display List`](https://docs.phaser.io/phaser/concepts/gameobjects/display-list)，这里对其及其相关联的部分进行简单介绍。
+
+在 Phaser 中，每个场景（Scene）都维护一个 Display List 用于管理游戏对象相关的渲染顺序（关于物理，有另外的 Update List）。
+一般情况下，Display List 中的 Game Object 会以其被添加列表中的顺序进行渲染，可以通过辅助函数进行位置调整，如： `sendToBack`, `moveDown`, `bringToTop` 和 `moveUp`。
+
+所有 Display List 内部的 Game Object 都有一个 depth 属性，影响其在整个列表中的显示顺序，depth 越高，那么渲染顺序就会越靠前。每次添加或移除 Game Object 时，Phaser 都会对自身的 Display List 进行 depth 排序，要保持较好的性能，必须要充分考虑到这个因素。
+
+一个例外的情况是 Container 对象中的子项。这个特殊的 Game Object 子类维护了一个自己内部的 Inernal List，控制其内部对象的渲染顺序。其内部 Game Object 的 depth 是失效的，但是上述的辅助函数是可以在其中使用的。
+
+另一个维护自己内部子项的子类是 Layer。这个子类兼容了子项的 depth，同时也可以使用辅助函数调整位置。理解起来，有点像是 Web 开发中 z-index 的嵌套关系。
+此外，相较于 Layer，添加到 Container 内部的 GameObject 其坐标将相对其 Container 的中心进行变换，形成局部的坐标系，方便于进行复合动画的操作。
+
+还有一个相关联的类是 Group，一样继承自 GameObject。但其既不会控制添加到其中的 GameObject 的渲染顺序，也不会产生相对坐标系。这个子类一般用于分类和批量控制 GameObject。
+
+一般地，添加到 Container 或是 Layer，GameObejct 将会从 Display List 中移除，但添加到 Group 不会。这样，一个 GameObject 可以在保存在多个 Group 中，而 Container、Layer 则不会。
+
+#### 常用类型
+
+##### Sprite
+
+Phaser 中最重要的元素，负责绝大多数元素的渲染。
+
+```typescript
+class MainScene extends Phaser.Scene {
+  heroine!: Phaser.GameObjects.Sprite
+  constructor() {
+    super({ key: 'MainScene' })
+  }
+
+  preload() {
+    this.load.spritesheet('heroine', heroineSprite, {
+      frameWidth: 30,
+      frameHeight: 30,
+      margin: 0,
+      spacing: 2,
+    })
+  }
+
+  create() {
+    // 创建角色
+    const sprite = this.add.sprite(400, 300, 'heroine')
+    this.heroine = sprite
+  }
+}
+```
+
+如果需要监听指针或者触摸事件，那么：
+
+```typescript
+const pointerupHandler = () => {}
+// 必须要开启事件，才能监听到
+sprite.setInteractive({ cursor: 'pointer' })
+sprite.on('pointerup', pointerupHandler)
+```
+
+此时，sprite 监听的相应区域默认由其自身的纹理大小确定，可以使用 Phaser.Geom 中的类进行修改，比如说：
+
+```typescript
+sprite.setInteractive({ hitArea: new Phaser.Geom.Circle(0, 0, 20) })
+```
+
+##### DOM Element
+
+如果使用 Phaser 进行页面开发，基本上都会用到此元素。
+
+几种常见的用途：
+1. 对齐 DOM 和 Phaser 中的对象，用于处理联动动画的位置；
+2. 需要兼容 webp 动图特效，比方说活动中的场景。
+
+一般地，可以使用以下方法创建：
+
+```typescript
+this.add.dom(x, y, 'div', 'background-color: lime; width: 220px; height: 100px; font: 48px Arial', 'Phaser');
+this.add.dom().createElement('div');
+this.add.dom().createFromHTML(`<div></div>`);
+```
+
+如果需要自定义样式，则可以封装方法，然后创建：
+
+```typescript
+export const createDomIcon = (src?: string) => {
+  const element = document.createElement('div')
+  const img = document.createElement('img')
+  if (src) {
+    img.src = src
+  }
+  img.style.position = 'absolute'
+  img.style.top = '0'
+  img.style.left = '0'
+  img.style.transform = 'translate(-50%, 0)'
+  element.style.userSelect = 'none'
+  element.style.webkitUserSelect = 'none'
+  element.draggable = false
+  element.style.position = 'relative'
+  element.appendChild(img)
+  element.style.left = '0'
+  element.style.top = '0'
+  return element
+}
+```
+
+然后：
+
+```typescript
+const element = createDomIcon(this.src)
+const domIcon = scene.add.dom(x, y, element)
+```
+
+！！！注意，如果要 Phaser 中的 DOM 元素也能响应事件监听，要编写如下语句：
+
+```typescript
+const pointerupHandler = () => {}
+// 将 'click' 替换为你想要开启的事件
+element.addListener('click')
+element.on('click', pointerupHandler)
+```
+
+*注意：如果使用 Phaser 中的 Text，可能清晰度较差，且需要自己实现多行文本截断省略。*
+
+##### Group
+
+用于管理和归类 GameObject，不具备自己的大小和碰撞等。允许批量为元素添加着色器效果。
+
+##### Container
+
+用于管理 GameObject 的 GameObject 子类，不具备初始的大小，需要自己去手动进行配置。添加到 Container 后，GameObject 坐标将会相对 Container 的中心位置，不再是世界坐标系。
+
+Container 维护自己内部的渲染列表，添加到其中后，Game Container 从 Layer 或者 Scene 的 Display List 移除。
+
+注意，Container 自身大小默认为 0，如果要为 Container 添加交互，需要设置 hitArea：
+
+```typescript
+container.setInteractive({ hitArea: new Phaser.Geom.Circle(0, 0, 20) })
+```
+
+### 创建动画
+
+#### 创建位图动画
+
+```typescript
+// 先加载资源，生成对应的纹理资源
+this.load.spritesheet('heroine', heroineSprite, {
+    frameWidth: 30,
+    frameHeight: 30,
+    margin: 0,
+    spacing: 2,
+})
+
+// 创建动画，其中 scene.anims.generateFrameNames 第一个参数是纹理的名称
+sprite.anims.create({
+    key: 'heroine-idle-right',
+    frames: scene.anims.generateFrameNames('heroine', {
+        frames: [1]
+    }),
+    frameRate: 10,
+    repeat: -1,
+})
+```
+
+上为通过 GameObject 的动画管理器为其创建位图动画，场景 Scene 也具有自己的动画管理器，可以用于创建全局动画，所有场景中的 GameObject 都可以使用到。
+
+#### 创建补间动画
+
+```typescript
+scene.tweens.chain({
+  // 全局的作用对象
+  targets: null,
+  // 延迟时间
+  delay: 0,
+  tweens: [
+    {
+     // 每个动画的作用对象（GameObject)
+      targets,
+      rotation,
+      // 其他参数
+      // ...
+      // 是否是往返动画
+      yoyo: false,
+      duration,
+      ease: 'quad.out',
+      repeat: 0,
+    },
+  ],
+  onStop: () => {
+    this.state = WheelState.Stopped
+  },
+  onPass: () => {
+    this.state = WheelState.Stopped
+  },
+  onComplete: () => {
+    this.state = WheelState.Stopped
+  },
+})
+```
+
+### 实战实例
+
+代码地址：
+https://gitlab-ecs.litatom.com/tianye/phaser-demo
+利用三个场景实现资源加载、监听案件并实时更新动画。
+场景 1，负责启动和提供较小的图片资源，以供进度条作为背景显示：
+
+```typescript
+import * as Phaser from 'phaser'
+import imageOpenScreen from '@/assets/images/open-screen.png'
+
+class BootScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'BootScene' })
+  }
+
+  preload() {
+    this.load.image('open-screen', imageOpenScreen)
+  }
+
+  create() {
+    this.scene.start('PreloaderScene')
+  }
+}
+
+export default BootScene
+```
+
+场景 2，负责进度加载和资源加载完毕后展示主场景：
+
+```typescript
+import * as Phaser from 'phaser'
+import heroineSprite from '@/assets/images/heroine-transparent.png'
+import imageTileset from '@/assets/images/tileset.png'
+import bgm from '@/assets/audio/twinleaf-town.mp3'
+
+class PreloaderScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'PreloaderScene' })
+  } 
+
+  preload() {
+    this.load.spritesheet('heroine', heroineSprite, {
+      frameWidth: 30,
+      frameHeight: 30,
+      margin: 0,
+      spacing: 2,
+    })
+
+    this.load.image('tileset-image', imageTileset)
+    this.load.audio('bgm', bgm)
+
+    const text = this.add.text(400, 384 - 100, 'Loading...', { fontSize: 24, color: '#ffff00', align: 'center', stroke: 'red', strokeThickness: 2 })
+    text.setOrigin(0.5, 0.5)
+
+    this.add.rectangle(400, 384, 468, 32).setStrokeStyle(1, 0xffff00);
+
+     const bar = this.add.rectangle(400-230, 384, 4, 28, 0xff0000);
+
+     this.load.on('progress', (progress: number) => {
+         bar.width = 4 + (460 * progress);
+     });
+  }
+
+  create() {
+    setTimeout(() => {
+      this.scene.start('MainScene')
+    }, 3000)
+  }
+}
+
+export default PreloaderScene
+```
+
+场景 3，主场景，在内部完成所有实例的创建。
+
+```typescript
+import * as Phaser from 'phaser'
+import heroineSprite from '@/assets/images/heroine-transparent.png'
+import imageTileset from '@/assets/images/tileset.png'
+
+const level = [
+  [1, 1, 93, 93, 93, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 93, 93, 93, 1, 1, 1, 1, 3, 1, 1, 1],
+  [1, 5, 93, 93, 93, 5, 1, 5, 6, 7, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 13, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 15, 15, 1, 1],
+  [35, 36, 37, 1, 1, 1, 1, 1, 15, 15, 15, 1, 1],
+  [39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39]
+];
+
+class MainScene extends Phaser.Scene {
+  heroine!: Phaser.GameObjects.Sprite
+  map!: Phaser.Tilemaps.Tilemap
+  constructor() {
+    super({ key: 'MainScene' })
+  }
+
+  preload() {
+    this.load.spritesheet('heroine', heroineSprite, {
+      frameWidth: 30,
+      frameHeight: 30,
+      margin: 0,
+      spacing: 2,
+    })
+
+    this.load.image('tileset-image', imageTileset)
+  }
+
+  create() {
+    // 启用物理引擎，默认开启
+    // this.physics.enableUpdate()
+
+    // 播放背景音乐
+    this.sound.play('bgm', { loop: true })
+
+    // 创建瓦片地图
+    const map = this.make.tilemap({
+      key: 'tileset-image',
+      data: level,
+      tileWidth: 16,
+      tileHeight: 16,
+    })
+    // 将图片纹理转换为瓦片集
+    const tilesets = map.addTilesetImage('world-map', 'tileset-image')
+    const layer = map.createLayer(0, tilesets!, 0, 0)!.setScale(4)
+    layer.setCollision([3, 5, 6, 7, 13])
+
+    // 创建调试图形
+    const debugGraphics = this.add.graphics();
+    map.renderDebug(debugGraphics);
+
+    // 创建角色
+    const sprite = this.add.sprite(400, 300, 'heroine')
+    this.heroine = sprite
+    sprite.setSize(16, 16 * 4 * 1)
+    sprite.setDisplaySize(16 * 4 * 2, 16 * 4 * 2)
+    // 角色的物理默认是不启用的，需要手动启用
+    this.physics.world.enable(this.heroine)
+    ; (this.heroine.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true)
+    ; (this.heroine.body as Phaser.Physics.Arcade.Body).setSize(12, 22, false).setOffset(10, 4)
+    this.physics.add.collider(this.heroine, layer)
+    // 创建角色动画
+    this.heroine.anims.create({
+      key: 'heroine-idle-top',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [0]
+      }),
+      frameRate: 10,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-idle-right',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [1]
+      }),
+      frameRate: 10,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-idle-bottom',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [11]
+      }),
+      frameRate: 10,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-idle-left',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [12]
+      }),
+      frameRate: 10,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-run-up',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [19, 2, 14],
+      }),
+      frameRate: 6,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-run-down',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [20, 3, 9],
+      }),
+      frameRate: 6,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-run-left',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [15, 21, 4],
+      }),
+      frameRate: 6,
+      repeat: -1,
+    })
+    this.heroine.anims.create({
+      key: 'heroine-run-right',
+      frames: this.anims.generateFrameNames('heroine', {
+        frames: [10, 16, 22],
+      }),
+      frameRate: 6,
+      repeat: -1,
+    })
+    // 设置角色初始状态
+    this.heroine.setState('idle')
+    this.heroine.setData('direction', 'down')
+
+    // this.add.image(400, 300, 'sky');
+    const particles = this.add.particles(0, 0, 'red', {
+      speed: 100,
+      scale: { start: 1, end: 0 },
+      blendMode: 'ADD'
+    });
+
+    particles.startFollow(this.heroine);
+    particles.setBelow(this.heroine);
+
+    this.heroine.setState('idle')
+  }
+
+  update() {
+    const cursors = this.input.keyboard?.createCursorKeys();
+    let currentDirection = '';
+
+    if (cursors) {
+      if (cursors.right.isDown) {
+        currentDirection = 'right';
+        this.heroine.setState('run')
+      } else if (cursors.left.isDown) {
+        currentDirection = 'left';
+        this.heroine.setState('run')
+      } else if (cursors.up.isDown) {
+        currentDirection = 'up';
+        this.heroine.setState('run')
+      } else if (cursors.down.isDown) {
+        currentDirection = 'down';
+        this.heroine.setState('run')
+      } else {
+        console.info('set idle')
+        this.heroine.setState('idle')
+      }
+    }
+    if (currentDirection) {
+      this.heroine.setData('direction', currentDirection)
+    }
+    const direction = this.heroine.getData('direction')
+    const state = this.heroine.state
+    const speed = 200
+    console.info(state, direction)
+
+    if (state === 'idle') {
+      (this.heroine.body as Phaser.Physics.Arcade.Body).setVelocity(0)
+      if (direction === 'right') {
+        this.heroine.anims.play('heroine-idle-right', true)
+      } else if (direction === 'left') {
+        console.info('play left')
+        this.heroine.anims.play('heroine-idle-left', true)
+      } else if (direction === 'up') {
+        this.heroine.anims.play('heroine-idle-top', true)
+      } else if (direction === 'down') {
+        this.heroine.anims.play('heroine-idle-bottom', true)
+      }
+    } else if (state === 'run') {
+      if (direction === 'right') {
+        this.heroine.anims.play('heroine-run-right', true)
+        ;(this.heroine.body as Phaser.Physics.Arcade.Body).setVelocity(speed, 0)
+      } else if (direction === 'left') {
+        this.heroine.anims.play('heroine-run-left', true)
+        ;(this.heroine.body as Phaser.Physics.Arcade.Body).setVelocity(-speed, 0)
+      } else if (direction === 'up') {
+        this.heroine.anims.play('heroine-run-up', true)
+        ;(this.heroine.body as Phaser.Physics.Arcade.Body).setVelocity(0, -speed)
+      } else if (direction === 'down') {
+        this.heroine.anims.play('heroine-run-down', true)
+        ;(this.heroine.body as Phaser.Physics.Arcade.Body).setVelocity(0, speed)
+      }
+    }
+  }
+}
+
+export default MainScene;
+```
+
+主应用中，如下配置：
+
+```typescript
+import { useEffect, useRef } from 'react'
+import * as Phaser from 'phaser'
+import MainScene from './scene/main'
+import BootScene from './scene/boot'
+import PreloaderScene from './scene/preloader'
+
+function App() {
+  const gameRef = useRef<Phaser.Game | null>(null)
+  useEffect(() => {
+    if (gameRef.current) {
+      return () => {}
+    }
+
+    const game = new Phaser.Game({
+      width: 800,
+      height: 600,
+      backgroundColor: 'transparent',
+      scale: {
+        mode: Phaser.Scale.ScaleModes.FIT, 
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      physics: {
+        default: 'arcade',
+        arcade: {
+          debugBodyColor: 0x0000ff,
+          debug: true,
+          x: 0,
+          y: 0,
+          checkCollision: {
+            up: true,
+            down: true,
+            left: true,
+            right: true
+          },
+        },
+      },
+      scene: [BootScene, PreloaderScene, MainScene],
+      antialias: false,
+    })
+    gameRef.current = game
+  
+    return () => {
+      console.info('destroy')
+      gameRef.current?.destroy(true)
+      gameRef.current = null
+    }
+  }, [])
+
+  return (
+    null
+  )
+}
+
+export default App
+```
+
+启动后，我们可以最终到一个这样的游戏：
+*注：实际 Demo 是带有 BGM 播放的，没有录制进去。*
+
+<video src={video01} alt="示例" controls />
+
+如果需要根据配置实时创建，那么应当如下：
+
+```typescript
+// 手动调用加载队列加载
+scene.load.start();
+// 加载完成后在回调中创建或更新
+scene.load.once('complete', handleComplete);
+```
+
+之后，在 handleComplete 函数回调中去做 GameObject 的创建和更新。
+
+```typescript
+const handleComplete = () => {
+    Debugger.info('【轮盘】监听到资源加载完成，更新轮盘。', Date.now())
+    this.updatePendingItems()
+    this.updateItems()
+}
+```
+
+此外，如果要结合外部系统，扩写 Scene 并调用其中的方法，则可以尝试手动创建 Scene 实例，类似于：
+
+```typescript
+useEffect(() => {
+    const width = GAME_WIDTH
+    const height = GAME_HEIGHT
+    const game = new Game({
+      ...GAME_CONFIG,
+      parent: 'wheel',
+      width,
+      height,
+    })
+    // 实例化自定义的 Scene
+    const scene = new WheelScene({ fallback, soundPauseOnBlur: false, isMuted: mute })
+    // 导出 Scene 到外部
+    sceneRef.current = scene
+    // 开始 Scene
+    game.scene.add(GAME_SCENE_KEY, scene)
+    game.scene.start(GAME_SCENE_KEY)
+    gameRef.current = game
+    window.game = game
+
+    return () => {
+      game.destroy(true)
+      gameRef.current = null
+      sceneRef.current = null
+    }
+  }, [])
+```
+
+## Phaser 的自定义构建
+
+完整的 Phaser 大概有 1.3M，在应用于 Web 中属于比较大的包体。
+通过下属项目的自定义构建，大致可以缩减一个支持 DOM 元素和音频播放控制的相对完整的 Phaser，缩减大小至大概 800Kb。
+https://github.com/phaserjs/custom-build
+
+## 拓展阅读
+
+1. Phaser.Actions 用于对齐和布局元素
+https://docs.phaser.io/phaser/concepts/actions#applying-an-action-to-a-group
+2. GameObject 的通用属性和组件
+  https://docs.phaser.io/phaser/concepts/gameobjects/components
+3. GameObject 创建方法
+  https://docs.phaser.io/phaser/concepts/gameobjects/factories
+4. 基于 Phaser 的地牢生成器
+  https://phaser.io/examples/v3.85.0/tilemap/view/dungeon-generator 
+5. 带有 Arcade 物理系统的 CSV 地图加载
+  https://phaser.io/examples/v3.85.0/tilemap/collision/view/csv-map-arcade-physics
+6. 一个带有资源加载和瓦片地图+碰撞的 demo
+  https://gitlab-ecs.litatom.com/tianye/phaser-demo
+7. Phaser 官方演示库：
+  https://labs.phaser.io/index.html
+8. Phaser 官方文档：
+  https://docs.phaser.io/phaser/getting-started/what-is-phaser
