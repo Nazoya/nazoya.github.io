@@ -1,0 +1,357 @@
+---
+title: '深入浅出虚拟滚动'
+description: '一万行记录里，视口同时看得见的只有一小段，其余节点却已经参与布局。虚拟滚动按滚动位置维护这段窗口：只保留可视区域附近的节点，用占位把滚动高度撑回完整内容，滚动时把离开窗口的节点挪去新进入的位置。本文说明这套几何关系，以及动态行高、滚动定位和过扫描会在哪里出错。'
+pubDate: '2026-10-19'
+tags: ['前端', 'JavaScript', '浏览器']
+slug: '深入浅出虚拟滚动'
+---
+
+一万行记录摊在页面上，屏幕里同时露出来的往往只有十几行。剩下的那些，人还没滚到，浏览器已经为它们建好了节点、算过了布局。虚拟滚动要改的就是这件事：内容可以很长，文档里真正带着的节点，只覆盖视口附近的那一截。
+
+滚动条仍然按完整内容来走。差别在于，窗口以外的项这一帧没有节点。
+
+## 技术点
+
+- 可视区域
+- 占位高度
+- 滚动时回收节点
+
+## 前置知识
+
+### 滚动容器的三个长度
+
+一个限了高度、又设了 `overflow: auto` 的元素，是滚动容器。虚拟滚动直接用到三个量：
+
+- `clientHeight`：视口高度，容器里边看得到的那一段。
+- `scrollTop`：内容已经往上卷走多少。视口上沿在内容坐标里的位置，就是这个值。
+- `scrollHeight`：内容总高度。滚动条的行程，来自它和视口高度的差。
+
+视口盖住的是内容坐标上的区间 `[scrollTop, scrollTop + clientHeight)`。滚动，就是把这段区间在内容上滑动。
+
+### 节点会进布局
+
+浏览器为一行建立元素之后，这一行就进入盒子树。默认情况下，视口以外的盒子也参与布局，文档才知道自己有多高、后面的内容该从哪里排。节点一多，样式计算、布局、内存里的 DOM 对象都跟着涨。单元格里再放图片或一层套一层的子树，第一次把列表插进页面时就能卡住。
+
+屏幕高 600 像素、行高 40 像素时，视口里大约 15 行。一万行里，这一帧用户用得上的就是这 15 行，再加上滚动方向上紧挨着的几行。
+
+## 长列表卡在哪里
+
+开销绑在「每一行都有一个一直存在着的节点」上。总高度、滚动条、再滚到第 8000 行，这些都是真需求，但它们不要求那 8000 行此刻都躺在文档里。
+
+虚拟滚动把两件事拆开：
+
+- 滚动位置和滚动条，仍按完整内容的高度计算。
+- 建在文档里的节点，只覆盖视口附近的一个窗口。
+
+窗口跟着 `scrollTop` 移动。滚出窗口的那一项，这一帧可以没有节点。
+
+有的页面用别的办法省掉屏外布局和绘制，节点本身还留在文档里，个数仍跟着数据涨。那是另一层成本。虚拟滚动连窗口外的节点也不建。
+
+## 可视区域
+
+先假定每一行一样高，记为 `itemHeight`。这是最好算的一种，动态行高是在它上面改。
+
+给定 `scrollTop`、视口高度和项数，视口上沿、下沿各落在第几项，用除法就够了。`start` 含，`end` 不含：
+
+```js
+function visibleRange(scrollTop, viewportHeight, count, itemHeight) {
+  const start = Math.max(0, Math.floor(scrollTop / itemHeight));
+  const end = Math.min(count, Math.ceil((scrollTop + viewportHeight) / itemHeight));
+  return { start, end };
+}
+```
+
+`scrollTop = 1000`、`itemHeight = 40`、视口 600、一共一万项：
+
+- 上沿：`floor(1000 / 40) = 25`。第 25 项的顶在 1000，贴着视口上沿。
+- 下沿：`ceil(1600 / 40) = 40`。窗口是 `[25, 40)`，共 15 项。第 39 项占据 `[1560, 1600)`，下沿对齐视口下沿。
+
+只为这 15 个索引维护节点。其余索引这一帧不在文档里。
+
+第 `i` 项在内容坐标里的顶是 `i * itemHeight`。行用绝对定位、相对内容原点来摆的话：
+
+```js
+row.style.transform = `translateY(${index * itemHeight}px)`;
+```
+
+滚动过程中改的是偏移。行高仍要写成 `itemHeight`，文字本身的那一次布局省不掉。`transform` 避免的是「为了挪一行，把周围的布局再算一遍」。
+
+可以把它想成一条长卷上的一扇窗。卷有一万行那么长，窗里只夹着当前这十几行。`scrollTop` 是窗的上沿贴在卷的哪里。
+
+```
+内容坐标
+0        1000      1600                         400000
+|--------[ 视口 600px ]-------------------------|
+          窗口 [25, 40)
+```
+
+## 占位高度
+
+只把 15 个行节点放进容器，`scrollHeight` 就大约是 15 行。滚动条短得只能抖一下，`scrollTop` 也到不了 1000，窗口算法没有机会碰到后面的索引。
+
+占位元素把总高度交回去。它不表示任何一项的内容，只占尺寸。固定行高时：
+
+```js
+spacer.style.height = `${count * itemHeight}px`;
+```
+
+一万行、行高 40，占位是 400000 像素。`scrollHeight` 回到完整内容的高度，滚动条的比例、拖动滚动条能到达的位置，都跟每一行都在文档里时一致。
+
+两种摆法，几何是同一件事。
+
+**一块占位，行绝对定位。** 占位留在正常流里，把容器撑到总高度。每一行 `position: absolute`，再用 `translateY` 放到 `index * itemHeight`。行离开正常流，不会把占位再撑高，也不会互相推挤。
+
+**上下两段占位，行留在正常流。** 上面一段的高度等于窗口起点之前的高度，固定行高时是 `start * itemHeight`。中间按顺序放窗口里的行。下面一段是剩余高度 `(count - end) * itemHeight`。三块相加仍是 `count * itemHeight`。滚动时改两段的高度，行跟着文档流落到新的位置。
+
+滚动条相信的都是占位算出来的总高度。视口看见的都只是窗口里的行。绝对定位改单行偏移直接；上下占位少写定位。行高一旦不固定，改上面那段的高度就等于在推下面所有的行，这一点放在动态行高里说。
+
+结构可以缩成这样。行节点由脚本按窗口补上，不写死在标记里：
+
+```html
+<div class="viewport">
+  <div class="spacer"></div>
+</div>
+```
+
+```css
+.viewport {
+  position: relative;
+  height: 600px;
+  overflow: auto;
+}
+.spacer {
+  width: 1px;
+}
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+}
+```
+
+`.spacer` 的高度由脚本写成总高度。它在正常流里，绝对定位的行不参与撑高。
+
+用同一组数对一下两种摆法。一万项、行高 40、`scrollTop = 1000`、窗口 `[25, 40)`：
+
+- 一块占位：高度 400000。第 25 项 `translateY(1000)`，第 39 项 `translateY(1560)`。
+- 上下两段：上段 `25 * 40 = 1000`，中间 15 行共 600，下段 `(10000 - 40) * 40 = 398400`。三者相加仍是 400000。中间第一行的顶被上段推到 1000，和绝对定位的第 25 项是同一个位置。
+
+滚动到 `scrollTop = 1040` 时，绝对定位改的是各行的 `translateY`；上下两段改的是上段变成 1040、下段少 40。视口上沿对着的内容坐标都是 1040。
+
+## 滚动时回收
+
+窗口从 `[25, 40)` 挪到 `[26, 41)` 时，第 25 项离开上沿，第 40 项从下沿进来。每一帧都删掉离开的节点、再创建进来的节点，快速滚动时，创建和销毁就堆在滚动的同一段时间里。
+
+回收指的是：离开窗口的节点还留着，把偏移改到新索引上，把里面的内容换成新索引的那一项。节点个数保持在窗口大小附近。滚动改的是位置和内容，不是节点的数量。
+
+下面这段只说明窗口怎么对上节点。`itemHeight` 沿用前面的 40。`rows` 是窗口上的槽位，第 `i` 个槽位这一帧表示索引 `start + i`。
+
+```js
+function paint(viewport, rows, items, scrollTop, viewportHeight) {
+  const { start, end } = visibleRange(
+    scrollTop,
+    viewportHeight,
+    items.length,
+    itemHeight,
+  );
+  const need = end - start;
+
+  while (rows.length < need) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    viewport.appendChild(row);
+    rows.push(row);
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (i >= need) {
+      row.hidden = true;
+      continue;
+    }
+    const index = start + i;
+    row.hidden = false;
+    row.style.transform = `translateY(${index * itemHeight}px)`;
+    row.textContent = items[index].text;
+  }
+}
+```
+
+窗口变小时，多出来的槽位藏起来，避免还挡在视口里。窗口变大时，缺的槽位再创建。对固定的视口高度来说，`need` 基本是个常数，创建集中在第一帧。
+
+同一帧里的多次滚动合成一次绘制，监听用 `passive: true`，浏览器可以先滚动已有的层，不必等这段脚本把监听跑完：
+
+```js
+function mount(viewport, items) {
+  const spacer = viewport.querySelector('.spacer');
+  const rows = [];
+  spacer.style.height = `${items.length * itemHeight}px`;
+
+  let frame = 0;
+  const draw = () => paint(viewport, rows, items, viewport.scrollTop, viewport.clientHeight);
+  viewport.addEventListener('scroll', () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      draw();
+    });
+  }, { passive: true });
+
+  draw();
+}
+```
+
+挂上监听之后先画一帧，否则 `scrollTop` 还是 0 时视口是空的。
+
+回收有一个直接的后果。节点不是新建的，上一项留在节点上的状态会跟着走。`textContent` 会盖掉旧文本。行里如果有输入框，用户打了一半的字还在这个节点上，槽位一被派去另一个索引，字就出现在那一项上。换索引之前，要把输入写回原来那一项自己的数据，或者把未提交的状态清掉。焦点也一样：节点被派去别处，焦点还在这个节点上，看起来就是焦点跳了行。
+
+## 用一组数字走一遍
+
+行高 40，视口 600，`scrollTop` 从 1000 变到 1040，正好滚过一行。占位高度始终是 `10000 * 40`。
+
+| | 滚动前 | 滚动后 |
+|---|---|---|
+| `scrollTop` | 1000 | 1040 |
+| 窗口 | `[25, 40)` | `[26, 41)` |
+| 离开的索引 | | 25 |
+| 进入的索引 | | 40 |
+
+原来画第 25 项的那个节点，`translateY` 从 1000 改成 `40 * 40 = 1600`，文本改成第 40 项。其余槽位按 `start + i` 重写偏移。视口上沿现在对着第 26 项的顶，也就是 1040。
+
+拖动滚动条时，`scrollTop` 可以一帧跳过几百项。窗口按新的 `scrollTop` 整段重算，不是一项一项挪过去。槽位还是那些，只是这一帧大部分槽位都换了索引。
+
+## 常见的坑
+
+### 动态行高
+
+固定行高时，第 `i` 项的顶是 `i * itemHeight`，总高度是项数乘行高，从 `scrollTop` 反查索引是一次除法。行高各不相同，这三件事一起失效。
+
+先给没量过的项一个估计高度。维护前缀和 `offsets`：`offsets[0] = 0`，`offsets[i]` 是第 `i` 项的顶，`offsets[count]` 是总高度。占位高度写成 `offsets[count]`。
+
+从 `scrollTop` 找窗口起点，改成找最大的 `i`，使得 `offsets[i] <= scrollTop`：
+
+```js
+function findStart(offsets, scrollTop) {
+  const last = offsets.length - 2;
+  let lo = 0;
+  let hi = last;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (offsets[mid] <= scrollTop) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+```
+
+`offsets = [0, 40, 100, 130]` 时，一共三项。`scrollTop = 100`，得到 `2`，第 2 项的顶正好在视口上沿。`scrollTop = 99`，得到 `1`，第 1 项占据 `[40, 100)`，99 还落在它里面。`scrollTop = 0`，得到 `0`。
+
+窗口的终点跟着高度走。第 `i` 项占据 `[offsets[i], offsets[i + 1])`。一项和视口相交的条件是：它的顶在视口下沿之前，并且它的底在视口上沿之后。从起点往后收到第一个这样失败的索引，那个索引就是 `end`。视口下沿正好落在某项的顶上时，这一项不算进窗口，跟前面 `ceil` 的取法一致。
+
+绘制之后才知道真实高度。量到第 `i` 项是 `measured`，和当前记录的差是 `delta`。前缀和从这项的底边往后都要加上 `delta`，占位一起变：
+
+```js
+function applyDelta(offsets, index, delta) {
+  for (let k = index + 1; k < offsets.length; k++) {
+    offsets[k] += delta;
+  }
+}
+```
+
+差若整个落在视口上沿之前，用户没有滚动，视口里的内容也会挪。第 10 项估了 40、量出来 120，多出来的 80 像素把后面的内容往下顶。修正前，先看这项的底边在不在视口上沿之上。底边已经在上沿之上，说明多出来的厚度都在视口外面，同一帧把 `scrollTop` 加上 `delta`，上沿才继续对着原来的内容。底边还在视口里，多出来的像素长在可见区域，上沿对着的内容没变，`scrollTop` 不动，只让总高度变长。
+
+```js
+const oldTop = offsets[index];
+const oldBottom = oldTop + heights[index];
+const delta = measured - heights[index];
+heights[index] = measured;
+applyDelta(offsets, index, delta);
+spacer.style.height = `${offsets[offsets.length - 1]}px`;
+if (oldBottom <= scrollTop) {
+  viewport.scrollTop = scrollTop + delta;
+}
+```
+
+用四项走一遍，估计高度都是 40，所以 `offsets = [0, 40, 80, 120, 160]`，视口高度 100，`scrollTop = 80`。起点是 2，视口 `[80, 180)` 盖住第 2 项 `[80, 120)` 和第 3 项 `[120, 160)`。
+
+第 2 项量得 70，`delta = 30`。修正前底边是 120，大于 `scrollTop`，底边在视口里面。`scrollTop` 不动。第 2 项的顶仍是 80，第 3 项的顶变成 150，总高度变成 190。用户看见的是这一项在视口里变高，下面的内容往下让。
+
+换第 0 项，量得 60，`delta = 20`。修正前底边是 40，`40 <= 80`，整项都在上沿之上。`scrollTop` 变成 100，从第 1 项起每一项的顶都加 20。原来贴着内容坐标 80 的那条线现在在 100，视口上沿跟着过去，对着的还是同一处内容。
+
+`delta` 为负、也就是这项变矮时，同样的判断成立，`scrollTop` 加上这个负数。结果小于 0 时要钳住。
+
+同一帧里量到好几项，要用更新前的偏移判断哪些底边在上沿之上，把这些 `delta` 加总，再改一次 `scrollTop`。边改偏移边判断，后面的项会用到已经变过的坐标。
+
+这次写 `scrollTop` 会再进入滚动监听。那一次是修正，不是用户在滚，跳过即可，避免测量和修正互相叫醒。
+
+估计值和实测差得远时，滚动条会在测量过程中变长变短，快速拖动时最明显。已经量过的高度留在这一项上，它再次进入窗口时用实测值。列表中间会插入、删除时，高度跟项走，不要只跟下标走：下标接下来会指向另一项。
+
+上下两段占位里，窗口上方任何一项变高，都体现在上面那段占位变高，中间的行被往下推。要保住视口里的内容，同样得把这段多出来的高度补进 `scrollTop`。
+
+### 滚动定位
+
+这里的定位是两件几何上的事：从滚动位置找到项，以及把视口对准某一项。
+
+从位置找项，固定行高用除法，行高不等用上面的二分。`findStart` 给出的就是视口上沿所在的那一项。
+
+把视口对准第 `index` 项，就是让 `scrollTop` 等于这项的顶：
+
+```js
+viewport.scrollTop = offsets[index];
+```
+
+高度还是估计值时，这一下对准的是估计位置。该项进入窗口、量出真实高度之后，`offsets[index]` 可能变了，需要再设一次。用户正在滚的时候不要做第二下，滚轮和修正会抢 `scrollTop`。
+
+窗口外的项没有节点。要对准它，先按偏移设置 `scrollTop`，让窗口盖住那个索引，节点出现之后再按测量结果修正。不能等那个节点出现了再叫它自己滚进视口，调用发生的时候节点还不在。
+
+另一类定位发生在人没滚、视口上方的高度却变了的时候。往内容头部插入一行就是这样：已有各项的顶都增加了新行的高度。`scrollTop` 不加同样的量，上沿会改而对着另一项。聊天记录往上补旧消息，画面被拽到顶上，就是这一步漏了。
+
+更新前记下上沿对着的项，以及上沿在这项内部的距离 `scrollTop - offsets[anchor]`。偏移重算之后，把 `scrollTop` 设成这项的新顶，再加上那段距离。
+
+浏览器的滚动锚定只看文档里已经有的节点。窗口外的项不在文档里，它们变高、被插到前面，锚定都看不见。虚拟滚动的锚定做在 `scrollTop` 和占位高度上。
+
+### 过扫描
+
+窗口和视口严丝合缝时，快滚的边缘会闪出空白。合成器先把已经画好的层移开，脚本在随后的帧里才把新索引摆好。这两步之间，新露出来的那条缝上还没有内容。
+
+过扫描是在窗口上下多留几项，或者多留一段像素。视口还没滚到，节点已经在视口外就位。固定行高时，在可见区间两侧各扩 `overscan` 项：
+
+```js
+function windowRange(scrollTop, viewportHeight, count, itemHeight, overscan) {
+  const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const end = Math.min(
+    count,
+    Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan,
+  );
+  return { start, end };
+}
+```
+
+`overscan = 2` 时，前面的窗口从 `[25, 40)` 扩成 `[23, 42)`。第 23、24 项在上沿之外，第 40、41 项在下沿之外。占位高度不变。多出来的行仍然按自己的偏移绝对定位，不另加进 `scrollHeight`。
+
+过扫描填的是帧和帧之间的一小段位移，不是一次甩动的全部距离。一帧里 `scrollTop` 跳了 2000 像素，两行的过扫描盖不住，这一帧仍要按新位置重算整个窗口。空白若连着很多帧，先看绘制是不是太重、是不是被别的长任务挡住。把过扫描加成几百项，窗口就回到「节点数很多」的那条成本上了。
+
+单元格轻、行高固定，上下各 3 到 8 项通常够用。单元格里有图、有复杂子树，多 10 项就能感到首屏变慢，这时收小，快滚边缘再露白，就加一两项。行高差得很多时，按项数留会一会儿过多、一会儿不够，可以改成在前缀和上向外扩一段固定像素。
+
+滚动有方向时，滚动方向一侧多留，反方向少留。方向就是这一帧 `scrollTop` 减去上一帧。
+
+## 总结
+
+虚拟滚动把「内容有多高」和「这一帧画哪些索引」拆开。
+
+- 可视区域是 `[scrollTop, scrollTop + clientHeight)`。只有和它相交、再加上过扫描的索引需要节点。
+- 占位把总高度交回滚动容器。固定行高时，总高度是项数乘行高。行高不等时，总高度是前缀和的末项。
+- 滚动时窗口平移。离开窗口的节点改偏移、改内容，去表示新进入的索引。换索引前，节点上还没提交的输入状态要先归位。
+- 动态行高靠测量。一项的底边在视口上沿之上时，高度变化要加进 `scrollTop`，否则内容自己跳。
+- 滚到某一项、在头部插入，都是在设置 `scrollTop`。窗口外没有节点可以替你滚。
+- 过扫描只填帧间的缝。窗口每一帧仍按最新的 `scrollTop` 重算。
+
+## 参考资料
+
+\[1\]: CSSWG. CSSOM View Module[DB/OL]. [Element.scrollTop](https://drafts.csswg.org/cssom-view/#dom-element-scrolltop)、[Element.scrollHeight](https://drafts.csswg.org/cssom-view/#dom-element-scrollheight)、[Element.clientHeight](https://drafts.csswg.org/cssom-view/#dom-element-clientheight)
+
+\[2\]: CSSWG. CSS Scroll Anchoring Module Level 1[DB/OL]. [参考链接](https://drafts.csswg.org/css-scroll-anchoring/)
+
+\[3\]: W3C. Resize Observer[DB/OL]. [参考链接](https://drafts.csswg.org/resize-observer/)
